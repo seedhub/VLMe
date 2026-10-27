@@ -244,7 +244,7 @@ class PlaybackController(
             0
         }
 
-        val mw = playQueue.getMedia(index) ?: return
+        val mw = playQueue.getMedia(playlistManager.currentIndex) ?: return
         val mediaFromMl = medialibrary.getMedia(mw.uri)
         if (mediaFromMl != null) mw.time = mediaFromMl.time
 
