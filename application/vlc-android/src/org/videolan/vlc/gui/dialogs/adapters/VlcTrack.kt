@@ -30,6 +30,8 @@ interface VlcTrack {
     fun getId():String
     fun getWidth(): Int
     fun getHeight(): Int
+    /** Display aspect ratio, including non-square pixels and video rotation. */
+    fun getDisplayAspectRatio(): Float = 0f
     fun getProjection():Int
     fun getFrameRateDen():Int
     fun getFrameRateNum():Int

@@ -114,7 +114,6 @@ import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.util.AndroidUtil
 import org.videolan.libvlc.util.DisplayManager
-import org.videolan.libvlc.util.VLCVideoLayout
 import org.videolan.medialibrary.MLServiceLocator
 import org.videolan.medialibrary.Tools
 import org.videolan.medialibrary.interfaces.Medialibrary
@@ -254,7 +253,7 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     private var videoRemoteJob: Job? = null
     var service: PlaybackService? = null
     lateinit var medialibrary: Medialibrary
-    var videoLayout: VLCVideoLayout? = null
+    var videoLayout: SubtitleVideoLayout? = null
     lateinit var displayManager: DisplayManager
     var rootView: View? = null
     var videoUri: Uri? = null
@@ -571,6 +570,9 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         }
 
         videoLayout = findViewById(R.id.video_layout)
+        videoLayout?.apply {
+            videoAspectRatio = { service?.currentVideoTrack?.getDisplayAspectRatio() ?: 0f }
+        }
 
         /* Loading view */
         loadingImageView = findViewById(R.id.player_overlay_loading)
@@ -2511,6 +2513,7 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
                 } == true
                 isNavMenu = menuIdx == currentIdx || interactive
             }
+            videoLayout?.independentSubtitles = !isNavMenu
 
             if (isNavMenu) {
                 /*

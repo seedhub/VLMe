@@ -14,7 +14,7 @@
      (which requires the surface not be centered), while keeping the result centered
     -->
 
-    <org.videolan.libvlc.util.VLCVideoLayout
+    <org.videolan.vlc.gui.video.SubtitleVideoLayout
             android:id="@+id/video_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

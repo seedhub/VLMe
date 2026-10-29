@@ -126,7 +126,27 @@ class VideoTouchDelegate(private val player: VideoPlayerActivity,
     // Brightness
     private var isFirstBrightnessGesture = true
 
+    private fun cancelTouch() {
+        handler.removeCallbacksAndMessages(null)
+        if (touchX != -1f && touchY != -1f)
+            player.sendMouseEvent(MotionEvent.ACTION_UP, touchX.roundToInt(), touchY.roundToInt())
+        touchAction = TOUCH_IGNORE
+        touchX = -1f
+        touchY = -1f
+        numberOfTaps = 0
+        lastTapTimeMs = 0
+    }
+
     fun onTouchEvent(event: MotionEvent): Boolean {// Mouse events for the core
+        val subtitleLayout = player.videoLayout
+        val hasSubtitles = player.service?.spuTrack?.let { it != "-1" && it != "-2" } == true
+        val subtitleGesturesEnabled = hasSubtitles && !player.isLocked && !player.isNavMenu &&
+                player.fov == 0f && !player.isInPictureInPictureMode &&
+                player.isOnPrimaryDisplay && !player.isPlaylistVisible
+        if (subtitleLayout?.onSubtitleTouchEvent(event, subtitleGesturesEnabled) == true) {
+            cancelTouch()
+            return true
+        }
         // Seek
 // Seek (Right or Left move)
         // No volume/brightness action if coef < 2 or a secondary display is connected
@@ -203,7 +223,8 @@ class VideoTouchDelegate(private val player: VideoPlayerActivity,
                                 touchAction = TOUCH_FASTPLAY
                             }
                         }
-                        if (touchControls and TOUCH_FLAG_FASTPLAY != 0 && isInAllowedBounds(touchX, touchY))
+                        if (touchControls and TOUCH_FLAG_FASTPLAY != 0 && isInAllowedBounds(touchX, touchY) &&
+                                subtitleLayout?.isSubtitleGesturePending != true)
                             handler.postDelayed(fastPlayRunnable, 250)
                     }
                     MotionEvent.ACTION_MOVE -> {
