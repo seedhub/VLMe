@@ -281,6 +281,8 @@
 
     <string name="play_button">Play Button</string>
 
+    <string name="laser_no_disc_menus">%1$s (No menus)</string>
+
     <!-- Tips -->
     <string name="tips_title">Video player tips</string>
     <string name="seek">Seek</string>

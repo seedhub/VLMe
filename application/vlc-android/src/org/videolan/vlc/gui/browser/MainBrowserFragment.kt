@@ -26,6 +26,7 @@ package org.videolan.vlc.gui.browser
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
@@ -39,6 +40,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.videolan.medialibrary.MLServiceLocator
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.medialibrary.media.MediaLibraryItem
 import org.videolan.medialibrary.media.MediaWrapperImpl
@@ -69,7 +71,10 @@ import org.videolan.vlc.gui.helpers.hf.requestOtgRoot
 import org.videolan.vlc.gui.view.EmptyLoadingState
 import org.videolan.vlc.gui.view.EmptyLoadingStateView
 import org.videolan.vlc.gui.view.TitleListView
+import org.videolan.vlc.interfaces.IRefreshable
 import org.videolan.vlc.media.MediaUtils
+import org.videolan.vlc.providers.FileBrowserProvider
+import org.videolan.vlc.reloadLibrary
 import org.videolan.vlc.repository.BrowserFavRepository
 import org.videolan.vlc.util.ContextOption
 import org.videolan.vlc.util.ContextOption.CTX_ADD_FOLDER_AND_SUB_PLAYLIST
@@ -79,15 +84,23 @@ import org.videolan.vlc.util.ContextOption.CTX_FAV_EDIT
 import org.videolan.vlc.util.ContextOption.CTX_FAV_REMOVE
 import org.videolan.vlc.util.ContextOption.CTX_PLAY
 import org.videolan.vlc.util.FlagSet
+import org.videolan.vlc.util.LASER_TAG
 import org.videolan.vlc.util.Permissions
+import org.videolan.vlc.util.applyLaserPlaybackFlags
+import org.videolan.vlc.util.findUsbOpticalDriveByName
+import org.videolan.vlc.util.isLaserTileLocation
+import org.videolan.vlc.util.isLaserVideoMrl
 import org.videolan.vlc.util.isSchemeFavoriteEditable
+import org.videolan.vlc.util.laserMrlWithFd
+import org.videolan.vlc.util.openUsbOpticalDrivePlayback
+import org.videolan.vlc.util.parseLaserTileLocation
 import org.videolan.vlc.viewmodels.browser.BrowserFavoritesModel
 import org.videolan.vlc.viewmodels.browser.BrowserModel
 import org.videolan.vlc.viewmodels.browser.TYPE_FILE
 import org.videolan.vlc.viewmodels.browser.TYPE_NETWORK
 import org.videolan.vlc.viewmodels.browser.getBrowserModel
 
-class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionReceiver {
+class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionReceiver, IRefreshable {
 
     private lateinit var networkMonitor: NetworkMonitor
     private var currentCtx: MainBrowserContainer? = null
@@ -302,6 +315,18 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
         }
     }
 
+    /**
+     * The toolbar's refresh, reached through MainActivity.forceRefresh(). It
+     * used to rescan the media library only, this screen not being
+     * IRefreshable; that rescan is kept, and every optical drive is classified
+     * again, displayed ones included: a disc changed since the last pass leaves
+     * the device list as it was, so nothing else would notice.
+     */
+    override fun refresh() {
+        requireContext().reloadLibrary()
+        (localViewModel.provider as? FileBrowserProvider)?.reclassifyAllLaser()
+    }
+
     override fun onResume() {
         super.onResume()
         if (requiringOtg && OtgAccess.otgRoot.value != null) {
@@ -313,6 +338,9 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
             startActivity(intent)
         }
         requiringOtg = false
+        /* Re-examine the USB optical drives: a disc may have been inserted
+         * since they were last classified. See FileBrowserProvider.refreshLaser(). */
+        (localViewModel.provider as? FileBrowserProvider)?.refreshLaser()
     }
 
     private fun updateNetworkEmptyView(emptyLoading: EmptyLoadingStateView) {
@@ -360,6 +388,51 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
         dialog.show(fm, "fragment_add_server")
     }
 
+    /**
+     * Plays a laser optical-disc tile.
+     *
+     * The tile's [location] carries the MRL classification produced, the
+     * drive's deviceName and the disc title (see laserTileLocation). The
+     * drive is looked up by that name - not "the first candidate", which
+     * differs with two drives attached - and a fresh playback connection
+     * opened, whose descriptor replaces the stale one in the MRL. Substituted
+     * rather than rebuilt: the MRL's form belongs to laser.c.
+     *
+     * Does nothing if the drive has been unplugged or permission is refused.
+     *
+     * The connection is not closed here: it belongs to LaserConnections,
+     * which closes it once the playlist no longer names its descriptor.
+     */
+    private fun openLaserOpticalDrive(location: String?) {
+        val parsed = parseLaserTileLocation(location) ?: return
+        val (storedMrl, deviceName, discTitle) = parsed
+        lifecycleScope.launch {
+            val device = findUsbOpticalDriveByName(requireContext(), deviceName) ?: return@launch
+            val connection = openUsbOpticalDrivePlayback(requireContext(), device) ?: return@launch
+
+            /* The permission dialog may have outlived the fragment, and
+             * requireActivity() below would then throw. */
+            if (!isAdded) return@launch
+
+            val mrl = laserMrlWithFd(storedMrl, connection.fileDescriptor)
+            if (mrl == null) {
+                Log.w(LASER_TAG,
+                    "laser: stored MRL '$storedMrl' has no trailing fd to replace")
+                return@launch
+            }
+            val mw = MLServiceLocator.getAbstractMediaWrapper(mrl.toUri())
+            /* The disc title rather than the MRL, until playback starts: see
+             * applyLaserTitleOption(). */
+            if (discTitle.isNotEmpty()) mw.title = discTitle
+            /* The video player before playback: see isLaserVideoMrl(). */
+            if (isLaserVideoMrl(mrl)) mw.type = MediaWrapper.TYPE_VIDEO
+            /* Before openMedia(): the playback options are computed once,
+             * when the media is loaded. */
+            applyLaserPlaybackFlags(requireContext(), mw)
+            MediaUtils.openMedia(requireActivity(), mw)
+        }
+    }
+
     inner class MainBrowserContainer(
             override val scannedDirectory: Boolean = false,
             override val mrl: String? = null,
@@ -387,6 +460,9 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
         override fun onClick(v: View, position: Int, item: MediaLibraryItem) {
             val mediaWrapper = item as MediaWrapper
             if (actionMode != null) {
+                /* A laser tile is never selected: the action mode would hand
+                 * its lasertile:// location to the player. */
+                if (isLaserTileLocation(mediaWrapper.location)) return
                 if (!checkAdapterForActionMode()) return
                 val adapter = requireAdapter()
                 if (mediaWrapper.type == MediaWrapper.TYPE_AUDIO ||
@@ -406,6 +482,12 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
                             return
                         }
                     }
+                    /* A laser optical-disc tile plays directly rather than
+                     * opening a file browser. */
+                    if (isLaserTileLocation(item.location)) {
+                        openLaserOpticalDrive(item.location)
+                        return
+                    }
                 }
                 val intent = Intent(requireActivity().applicationContext, SecondaryActivity::class.java)
                 intent.putExtra(KEY_MEDIA, item)
@@ -417,6 +499,12 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
         override fun onLongClick(v: View, position: Int, item: MediaLibraryItem): Boolean {
             if (item.itemType != MediaLibraryItem.TYPE_MEDIA) return false
             val mediaWrapper = item as MediaWrapper
+            /* A long press on a laser tile plays it, like a tap: it has
+             * neither selection nor context menu. */
+            if (isLaserTileLocation(mediaWrapper.location)) {
+                if (actionMode == null) openLaserOpticalDrive(mediaWrapper.location)
+                return true
+            }
             if (mediaWrapper.type == MediaWrapper.TYPE_AUDIO ||
                     mediaWrapper.type == MediaWrapper.TYPE_VIDEO ||
                     mediaWrapper.type == MediaWrapper.TYPE_DIR) {
@@ -439,6 +527,11 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
 
                 val mw = item as MediaWrapper
                 if (mw.uri.scheme == "content" || mw.uri.scheme == OTG_SCHEME) return@launch
+                /* No menu for a laser tile: "add to favorites" would store a
+                 * USB path and a descriptor meaningless at the next launch.
+                 * Reachable from a context click although the adapter shows no
+                 * menu button. */
+                if (isLaserTileLocation(mw.location)) return@launch
                 val flags = FlagSet(ContextOption::class.java).apply {
                     val isEmpty = (viewModel as? BrowserModel)?.isFolderEmpty(mw) != false
                     if (!isEmpty) add(CTX_PLAY)

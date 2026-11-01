@@ -90,7 +90,11 @@ import org.videolan.vlc.gui.browser.BaseBrowserFragment
 import org.videolan.vlc.gui.video.VideoPlayerActivity
 import org.videolan.vlc.util.FileUtils
 import org.videolan.vlc.util.FontCache
+import org.videolan.vlc.util.LaserConnections
+import org.videolan.vlc.util.applyLaserTitleOption
 import org.videolan.vlc.util.awaitMedialibraryStarted
+import org.videolan.vlc.util.isLaserLocation
+import org.videolan.vlc.util.isLaserWholeDiscMrl
 import org.videolan.vlc.util.isSchemeFD
 import org.videolan.vlc.util.isSchemeHttpOrHttps
 import org.videolan.vlc.util.isSchemeStreaming
@@ -107,6 +111,16 @@ private const val TAG = "VLC/PlaylistManager"
 private const val PREVIOUS_LIMIT_DELAY = 5000L
 private const val PLAYLIST_AUDIO_REPEAT_MODE_KEY = "audio_repeat_mode"
 private const val PLAYLIST_VIDEO_REPEAT_MODE_KEY = "video_repeat_mode"
+
+/**
+ * Must [this] stay out of every persistent store - history, play counts,
+ * resume points, the saved playlist? True for an fd media and for a laser
+ * location: both name a descriptor, or a device path, meaningful for one
+ * connection in one process, which stored would name something else at the
+ * next launch.
+ */
+private fun MediaWrapper.isSessionScoped(): Boolean =
+    uri.scheme.isSchemeFD() || isLaserLocation(location)
 
 class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventListener, IMedia.EventListener, CoroutineScope {
     private var endReachedFor: String? = null
@@ -417,6 +431,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
         LocalBroadcastManager.getInstance(ctx).sendBroadcast(Intent(EXIT_PLAYER))
         if (systemExit) launch(start = CoroutineStart.UNDISPATCHED) {
             job?.join()
+            LaserConnections.closeAll()
             cancel()
             player.cancel()
         }
@@ -570,6 +585,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
             media.addOption(":start-time=${start/1000L}")
             media.addOption(":no-sout-chromecast-video")
             VLCOptions.setMediaOptions(media, ctx, flags or mw.flags, PlaybackService.hasRenderer())
+            applyLaserTitleOption(media, mw)
             /* keeping only video during benchmark */
             if (isBenchmark) {
                 media.addOption(":no-audio")
@@ -687,7 +703,9 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
         if (endReachedFor != null && endReachedFor == getCurrentMedia()?.uri.toString() && !end) return@outerLaunch
         val titleIdx = player.getTitleIdx()
         val currentMedia = getCurrentMedia() ?: return@outerLaunch
-        if (currentMedia.uri.scheme.isSchemeFD()) return@outerLaunch
+        /* Same exclusion as saveCurrentMedia(). The id == 0 test below would
+         * stop an unknown media anyway; this does not rely on it. */
+        if (currentMedia.isSessionScoped()) return@outerLaunch
         if (Settings.getInstance(AppContextProvider.appContext).getBoolean(KEY_INCOGNITO, false)) return@outerLaunch
         //Save progress
         val time = player.mediaplayer.time
@@ -807,7 +825,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
         val isAudio = isAudioList() || forceVideo
         settings.putSingle(KEY_CURRENT_MEDIA_IS_AUDIO, isAudio)
 
-        if (media.uri.scheme.isSchemeFD()) {
+        if (media.isSessionScoped()) {
             if (isAudio) {
                 settings.putSingle(KEY_CURRENT_AUDIO_RESUME_TITLE, "")
                 settings.putSingle(KEY_CURRENT_AUDIO_RESUME_ARTIST, "")
@@ -840,7 +858,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     suspend fun saveMediaList(forceVideo:Boolean = false) {
         if (settings.getBoolean(KEY_INCOGNITO, false)) return
         val currentMedia = getCurrentMedia() ?: return
-        if (currentMedia.uri.scheme.isSchemeFD()) return
+        if (currentMedia.isSessionScoped()) return
         val locations = StringBuilder()
         val isAudio = isAudioList() || forceVideo
         withContext(Dispatchers.Default) {
@@ -998,7 +1016,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                             type = MediaWrapper.TYPE_STREAM
                             entryUrl = mrl
                             medialibrary.getMedia(mrl)?.run { if (id > 0) medialibrary.removeExternalMedia(id) }
-                        } else if (!uri.scheme.isSchemeFD()) {
+                        } else if (!isSessionScoped()) {
                             medialibrary.addToHistory(mrl, title)
                         }
                     }
@@ -1049,7 +1067,8 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
             //we reached the end. The next proposed media should be the first of the list
             if (reset) {
                 val media = getMediaList()[0]
-                if(audio && settings.getBoolean(AUDIO_RESUME_PLAYBACK, true)) putString(KEY_CURRENT_AUDIO, media.location)
+                if(audio && settings.getBoolean(AUDIO_RESUME_PLAYBACK, true)
+                        && !media.isSessionScoped()) putString(KEY_CURRENT_AUDIO, media.location)
             }
         }
     }
@@ -1223,7 +1242,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                             showAudioPlayer.value = true
                         }
                         savePlaycount(mw)
-                        if (mw.title == mw.fileName || (mw.type == MediaWrapper.TYPE_STREAM && (mw.title != player.mediaplayer.media?.getMeta(IMedia.Meta.Title, true) || mw.artistName != player.mediaplayer.media?.getMeta(IMedia.Meta.Artist, true)))) {
+                        if (mw.title == mw.fileName || isLaserWholeDiscMrl(mw.location) || (mw.type == MediaWrapper.TYPE_STREAM && (mw.title != player.mediaplayer.media?.getMeta(IMedia.Meta.Title, true) || mw.artistName != player.mediaplayer.media?.getMeta(IMedia.Meta.Artist, true)))) {
                             // used for initial metadata update. We avoid the metadata load when the initial MediaPlayer.Event.ESSelected is sent to avoid race conditions
                             refreshTrackMeta(mw)
                         }
@@ -1266,7 +1285,20 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                     service.showToast(if (location != null && location.toUri().scheme == "missing") service.getString(R.string.missing_location) else service.getString(R.string.invalid_location, location
                             ?: ""), Toast.LENGTH_SHORT, true)
                     if (location != null) PlaybackService.lastError.postValue(location)
+                    if (location != null) LaserConnections.playbackFailed(location)
                     if (currentIndex != nextIndex) next() else stop()
+                }
+                MediaPlayer.Event.Stopped -> {
+                    /* Close the USB optical drives' playback connections the
+                     * playlist no longer names - see LaserConnections.
+                     *
+                     * Here and not in stop(): every native module releases
+                     * its token in its own Close(), and this event comes once
+                     * libVLC has done so. From stop(), the descriptor would
+                     * be closed under a libusb handle still in use.
+                     *
+                     * The whole list: an audio CD is one item per track. */
+                    LaserConnections.retainOnly(getMediaList().map { it.location })
                 }
                 MediaPlayer.Event.TimeChanged -> {
                     abRepeat.value?.let {
@@ -1317,7 +1349,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     private suspend fun savePlaycount(mw: MediaWrapper) {
         if (Settings.getInstance(AppContextProvider.appContext).getBoolean(KEY_INCOGNITO, false)) return
         var currentMedia = mw
-        if (settings.getBoolean(PLAYBACK_HISTORY, true) && !mw.uri.scheme.isSchemeFD()) withContext(Dispatchers.IO) {
+        if (settings.getBoolean(PLAYBACK_HISTORY, true) && !mw.isSessionScoped()) withContext(Dispatchers.IO) {
             var id = mw.id
             if (id == 0L) {
                 var internalMedia = medialibrary.findMedia(mw)

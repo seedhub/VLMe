@@ -52,8 +52,11 @@ import org.videolan.vlc.gui.DiffUtilAdapter
 import org.videolan.vlc.gui.helpers.*
 import org.videolan.vlc.gui.view.FastScroller
 import org.videolan.vlc.gui.view.MiniVisualizer
+import org.videolan.vlc.util.LaserDiscType
 import org.videolan.vlc.util.LifecycleAwareScheduler
 import org.videolan.vlc.util.getDescriptionSpan
+import org.videolan.vlc.util.isLaserTileLocation
+import org.videolan.vlc.util.laserTileDiscType
 import org.videolan.vlc.viewmodels.PlaylistModel
 
 const val UPDATE_PROGRESS = "update_progress"
@@ -199,7 +202,8 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
         val scheme = media.uri?.scheme ?: ""
         vh.bindingContainer.setHasContextMenu(((!networkRoot || isFavorite)
                 && "content" != scheme
-                && "otg" != scheme)
+                && "otg" != scheme
+                && !isLaserTileLocation(media.location))
                 && !multiSelectHelper.inActionMode)
         vh.bindingContainer.setFileName(if ((sort == Medialibrary.SORT_FILENAME || sort == Medialibrary.SORT_DEFAULT) && media.type != MediaWrapper.TYPE_DIR && "file" == scheme) media.fileName else null)
         if (networkRoot || (isFavorite && getProtocol(media)?.contains("file") == false)) vh.bindingContainer.setProtocol(getProtocol(media))
@@ -361,6 +365,15 @@ open class BaseBrowserAdapter(val browserContainer: BrowserContainer<MediaLibrar
         when (media.type) {
             MediaWrapper.TYPE_AUDIO -> return if (browserContainer.inCards) audioDrawableBig else audioDrawable
             MediaWrapper.TYPE_DIR -> {
+                laserTileDiscType(media.uri?.toString())?.let { disc ->
+                    return when (disc) {
+                        LaserDiscType.CD_AUDIO, LaserDiscType.DVD_AUDIO ->
+                            if (browserContainer.inCards) qaMusicDrawableBig else qaMusicDrawable
+                        LaserDiscType.DVD_VIDEO, LaserDiscType.BLURAY,
+                        LaserDiscType.VIDEO_CD ->
+                            if (browserContainer.inCards) qaMoviesDrawableBig else qaMoviesDrawable
+                    }
+                }
                 if (specialFolders) {
                     val uri = media.uri
                     if (AndroidDevices.MediaFolders.EXTERNAL_PUBLIC_MOVIES_DIRECTORY_URI == uri || AndroidDevices.MediaFolders.WHATSAPP_VIDEOS_FILE_URI == uri)

@@ -60,6 +60,7 @@ import org.videolan.vlc.util.DialogDelegate
 import org.videolan.vlc.util.FontCache
 import org.videolan.vlc.util.NetworkConnectionManager
 import org.videolan.vlc.util.VersionMigration
+import org.videolan.vlc.util.configureLaserEnvironment
 import org.videolan.vlc.widget.MiniPlayerAppWidgetProvider
 import java.io.File
 import java.io.IOException
@@ -81,6 +82,7 @@ class AppSetupDelegate : AppDelegate,
     @TargetApi(Build.VERSION_CODES.O)
     override fun Application.setupApplication() {
         appContextProvider.init(this)
+        configureLaserEnvironment(this)
         NotificationHelper.createNotificationChannels(this)
 
         // Service loaders
