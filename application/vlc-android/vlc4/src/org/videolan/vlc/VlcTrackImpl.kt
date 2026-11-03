@@ -37,6 +37,15 @@ class VlcTrackImpl : VlcTrack {
     override fun getName() = mediaTrack.name
     override fun getWidth() = (mediaTrack as? IMedia.VideoTrack)?.width ?: 0
     override fun getHeight() = (mediaTrack as? IMedia.VideoTrack)?.height ?: 0
+    override fun getDisplayAspectRatio(): Float {
+        val track = mediaTrack as? IMedia.VideoTrack ?: return 0f
+        if (track.width <= 0 || track.height <= 0) return 0f
+        val sar = if (track.sarNum > 0 && track.sarDen > 0)
+            track.sarNum.toFloat() / track.sarDen else 1f
+        val ratio = track.width.toFloat() * sar / track.height
+        return if (track.orientation >= IMedia.VideoTrack.Orientation.LeftTop) 1f / ratio else ratio
+    }
+
     override fun getProjection() = (mediaTrack as? IMedia.VideoTrack)?.projection ?: 0 //todo good default value?
     override fun getFrameRateDen() = (mediaTrack as? IMedia.VideoTrack)?.frameRateDen ?: 0 //todo good default value?
     override fun getFrameRateNum() = (mediaTrack as? IMedia.VideoTrack)?.frameRateNum ?: 0 //todo good default value?
