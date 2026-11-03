@@ -215,7 +215,7 @@
     <string name="track_framerate_info">Frame rate: %1$.3f\n</string>
 
     <string name="playback_speed">Playback speed</string>
-    <string name="warning_stream_speed">Increasing playback speed over 1 for streams may cause stuttering</string>
+    <string name="warning_stream_speed">Playing streams faster than 1× may cause stuttering.</string>
     <string name="playback_speed_this_video">This video</string>
     <string name="playback_speed_this_track">This track</string>
     <string name="playback_speed_all_videos">All videos</string>
@@ -395,7 +395,7 @@
     <string name="video_min_group_length_disable">Do not group videos</string>
     <string name="video_min_group_length_folder">Group by folder</string>
     <string name="video_min_group_length_name">Group by name</string>
-    <string name="video_transition_title">Videos transition</string>
+    <string name="video_transition_title">Transition between videos</string>
     <string name="video_transition_summary">Show new video title on transition</string>
     <string name="media_seen">Show seen video marker</string>
     <string name="media_seen_summary">Mark a video as seen when you play it until the end</string>
@@ -679,7 +679,7 @@
     <string name="current_chapter">Chapter: %s</string>
     <string name="confirm_resume">Resume from last position?</string>
     <string name="apply_playqueue">Apply for all the play queue</string>
-    <string name="confirm_resume_title">Resume played videos</string>
+    <string name="confirm_resume_title">Resume video playback</string>
     <string name="confirm_resume_audio_title">Resume played audio</string>
     <string name="tv_ui_title">Android TV interface</string>
     <string name="tv_ui_summary">Change UI to TV adapted theme</string>
@@ -711,8 +711,8 @@
 
     <!-- Accessibility -->
     <string name="more_actions">More Actions</string>
-    <string name="back_quit_lock">Press Back again to quit video</string>
-    <string name="stream_deleted">Stream deleted</string>
+    <string name="back_quit_lock">Press Back again to exit the video player</string>
+    <string name="stream_deleted">Saved stream removed</string>
     <string name="no_subs_found">No subtitles in this directory</string>
     <string name="music_now_playing">Now Playing</string>
 
@@ -793,7 +793,7 @@
     <string name="unknown_error">Unexpected error</string>
     <string name="browse_folder">Browse folder</string>
     <string name="listen">Listen</string>
-    <string name="apply_to_bt">Apply to bluetooth device</string>
+    <string name="apply_to_bt">Use for Bluetooth devices</string>
     <string name="episodes">episodes</string>
     <string name="movies">movies</string>
     <string name="videos">videos</string>
@@ -1005,7 +1005,7 @@
     <string name="open_network_settings">Open network settings?</string>
     <string name="recently_played">Recently played</string>
     <string name="recently_added">Recently added</string>
-    <string name="playback_multiple_errors">Multiple media cannot be played</string>
+    <string name="playback_multiple_errors">Multiple media items could not be played.</string>
     <string name="clear_media_db_message">You will lose your progresses, bookmarks and the playlists you created but you will keep your VLC for Android settings</string>
     <string name="clear_app_data_message">You will lose your progresses, bookmarks, playlists and all VLC settings</string>
     <string name="clear">Clear</string>
@@ -1028,10 +1028,10 @@
     <string name="codec">Codec</string>
     <string name="text">Text</string>
     <string name="unknown">Unknown</string>
-    <string name="audio_delay_start">Sound heard</string>
-    <string name="subtitle_delay_first">Voice heard</string>
-    <string name="audio_delay_end">Sound spotted</string>
-    <string name="subtitle_delay_end">Text seen</string>
+    <string name="audio_delay_start">Mark when the sound is heard</string>
+    <string name="subtitle_delay_first">Mark when the voice is heard</string>
+    <string name="audio_delay_end">Mark when the corresponding visual event is seen</string>
+    <string name="subtitle_delay_end">Mark when the subtitle appears</string>
     <string name="track_index">Track: %s</string>
     <string name="audio_queue_progress">Progress: %s</string>
     <string name="audio_queue_progress_remaining">Remaining: %s</string>
