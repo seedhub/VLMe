@@ -109,7 +109,7 @@ class FeedbackActivity : BaseActivity(), DebugLogService.Client.Callback {
 
     override fun onSaved(success: Boolean, path: String) {
         if (!success) {
-            Snackbar.make(window.decorView, R.string.dump_logcat_failure, Snackbar.LENGTH_LONG).show()
+            Snackbar.make(window.decorView, R.string.prepare_logs_failure, Snackbar.LENGTH_LONG).show()
             client.stop()
             return
         }
@@ -131,20 +131,20 @@ class FeedbackActivity : BaseActivity(), DebugLogService.Client.Callback {
                         }
                     }
                 } catch (exception: IOException) {
-                    Snackbar.make(window.decorView, R.string.dump_logcat_failure, Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(window.decorView, R.string.prepare_logs_failure, Snackbar.LENGTH_LONG).show()
                     client.stop()
                     return@withContext
                 }
 
                 if (!FileUtils.zip(filesToAdd.toTypedArray(), logcatZipPath)) {
-                    Snackbar.make(window.decorView, R.string.dump_logcat_failure, Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(window.decorView, R.string.prepare_logs_failure, Snackbar.LENGTH_LONG).show()
                     client.stop()
                     return@withContext
                 }
                 try {
                     filesToAdd.forEach { FileUtils.deleteFile(it) }
                 } catch (exception: IOException) {
-                    Snackbar.make(window.decorView, R.string.dump_logcat_failure, Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(window.decorView, R.string.prepare_logs_failure, Snackbar.LENGTH_LONG).show()
                     client.stop()
                     return@withContext
                 }

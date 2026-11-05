@@ -549,8 +549,8 @@ class AudioPlayer : Fragment(), PlaylistAdapter.IPlayer, TextWatcher, IAudioPlay
 
         binding.audioRewindText.text = "${Settings.audioJumpDelay}"
         binding.audioForwardText.text = "${Settings.audioJumpDelay}"
-        binding.audioForward10.contentDescription = getString(R.string.talkback_action_forward, Settings.audioJumpDelay.toString())
-        binding.audioRewind10.contentDescription = getString(R.string.talkback_action_rewind, Settings.audioJumpDelay.toString())
+        binding.audioForward10.contentDescription = resources.getQuantityString(R.plurals.talkback_action_forward, Settings.audioJumpDelay, Settings.audioJumpDelay)
+        binding.audioRewind10.contentDescription = resources.getQuantityString(R.plurals.talkback_action_rewind, Settings.audioJumpDelay, Settings.audioJumpDelay)
         updateBackground()
 
     }

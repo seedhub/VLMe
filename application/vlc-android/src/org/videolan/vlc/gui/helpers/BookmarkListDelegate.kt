@@ -123,8 +123,8 @@ class BookmarkListDelegate(val activity: FragmentActivity, val service: Playback
         rootView.setVisible()
         markerContainer.setVisible()
         visibilityListener.invoke()
-        bookmarkRewind10.contentDescription = activity.getString(R.string.talkback_action_rewind, Settings.audioJumpDelay.toString())
-        bookmarkForward10.contentDescription = activity.getString(R.string.talkback_action_forward, Settings.audioJumpDelay.toString())
+        bookmarkRewind10.contentDescription = activity.resources.getQuantityString(R.plurals.talkback_action_rewind, Settings.audioJumpDelay, Settings.audioJumpDelay)
+        bookmarkForward10.contentDescription = activity.resources.getQuantityString(R.plurals.talkback_action_forward, Settings.audioJumpDelay, Settings.audioJumpDelay)
         val jumpDelay = if (forVideo) Settings.videoJumpDelay else Settings.audioJumpDelay
         bookmarkRewindText.text = "$jumpDelay"
         bookmarkForwardText.text = "$jumpDelay"

@@ -132,16 +132,16 @@ class ConfirmDeleteDialog : VLCBottomSheetDialogFragment() {
                 val nbFiles = mediaList.filter { it is MediaWrapper && it.type != MediaWrapper.TYPE_DIR }.size
                 val nbFolders = mediaList.filter { it is MediaWrapper && it.type == MediaWrapper.TYPE_DIR }.size
                 when {
-                    nbFiles == 0 -> getString(R.string.confirm_delete_folders, nbFolders)
-                    nbFolders == 0 -> getString(R.string.confirm_delete_files, nbFiles)
-                    else -> getString(R.string.confirm_delete_folders_and_files, nbFolders, nbFiles)
+                    nbFiles == 0 -> resources.getQuantityString(R.plurals.confirm_delete_folders, nbFolders, nbFolders)
+                    nbFolders == 0 -> resources.getQuantityString(R.plurals.confirm_delete_files, nbFiles, nbFiles)
+                    else -> getString(R.string.confirm_delete_folders_and_files)
                 }
 
             }
             mediaList[0] is MediaWrapper -> getString(if ((mediaList[0] as MediaWrapper).type == MediaWrapper.TYPE_DIR) R.string.confirm_delete_folder else R.string.confirm_delete, mediaList[0].title)
             mediaList[0] is Album -> getString(R.string.confirm_delete_album, mediaList[0].title)
             mediaList[0] is Playlist -> getString(R.string.confirm_delete_playlist, mediaList[0].title)
-            else -> getString(R.string.confirm_delete_several_media, mediaList.size)
+            else -> resources.getQuantityString(R.plurals.confirm_delete_several_media, mediaList.size, mediaList.size)
         }
 
         if (descriptionString?.isNotEmpty() == true) description.text = descriptionString

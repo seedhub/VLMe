@@ -411,8 +411,8 @@ class MiniPlayerAppWidgetProvider : AppWidgetProvider() {
         views.setViewVisibility(R.id.widget_left_space, if (!showSeek) View.VISIBLE else if (playing) View.GONE else View.VISIBLE)
         views.setViewVisibility(R.id.widget_right_space, if (!showSeek) View.VISIBLE else if (playing) View.GONE else View.VISIBLE)
 
-        views.setContentDescription(R.id.seek_rewind, context.getString(R.string.seek_backward_content_description, widgetCacheEntry.widget.rewindDelay.toString()))
-        views.setContentDescription(R.id.seek_forward, context.getString(R.string.seek_forward_content_description, widgetCacheEntry.widget.forwardDelay.toString()))
+        views.setContentDescription(R.id.seek_rewind, context.resources.getQuantityString(R.plurals.seek_backward_content_description, widgetCacheEntry.widget.rewindDelay, widgetCacheEntry.widget.rewindDelay))
+        views.setContentDescription(R.id.seek_forward, context.resources.getQuantityString(R.plurals.seek_forward_content_description, widgetCacheEntry.widget.forwardDelay, widgetCacheEntry.widget.forwardDelay))
 
 
         views.setTextColor(R.id.songName, foregroundColor)
