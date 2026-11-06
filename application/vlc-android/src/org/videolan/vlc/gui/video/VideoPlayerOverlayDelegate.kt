@@ -565,6 +565,8 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
                 vsc.setVisible()
                 hudBinding = DataBindingUtil.bind(player.findViewById(R.id.progress_overlay)) ?: return
                 hudBinding.player = player
+                // VLMe: pop-up HUD button mirrors the ⋮ menu entry conditions
+                hudBinding.playerPopup.visibility = if (player.displayManager.isPrimary && AndroidDevices.pipAllowed && !AndroidDevices.isDex(player)) View.VISIBLE else View.GONE
                 hudBinding.progress = service.playlistManager.player.progress
                 abRepeatAddMarker = hudBinding.abRepeatContainer.findViewById(R.id.ab_repeat_add_marker)
                 service.playlistManager.abRepeat.observe(player) { abvalues ->

@@ -876,6 +876,23 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         }
     }
 
+    /**
+     * VLMe: pop-up player promoted to a HUD button. Mirrors the ⋮ menu
+     * (PlayerOptionsDelegate ID_POPUP_VIDEO) behavior: enter picture-in-picture
+     * and go to the home screen. The guards mirror switchToPopup() so the home
+     * intent only fires when pop-up can actually engage.
+     */
+    fun switchToPopupAndHome() {
+        if (isBenchmark) return
+        val mw = service?.currentMediaWrapper
+        if (mw == null || !AndroidDevices.pipAllowed || !isStarted()) return
+        switchToPopup()
+        val startMain = Intent(Intent.ACTION_MAIN)
+        startMain.addCategory(Intent.CATEGORY_HOME)
+        startMain.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(startMain)
+    }
+
     override fun onVisibleBehindCanceled() {
         super.onVisibleBehindCanceled()
         stopPlayback()

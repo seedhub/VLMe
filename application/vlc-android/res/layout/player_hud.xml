@@ -491,9 +491,27 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     vlc:layout_constraintBottom_toBottomOf="@+id/playlist_next"
-                    vlc:layout_constraintEnd_toStartOf="@+id/player_resize"
+                    vlc:layout_constraintEnd_toStartOf="@+id/player_popup"
                     vlc:layout_constraintStart_toEndOf="@+id/playlist_next"
                     vlc:layout_constraintTop_toTopOf="@+id/playlist_next" />
+
+            <ImageView
+                    android:id="@+id/player_popup"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margins_sides"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/ctx_pip_title"
+                    android:focusable="true"
+                    android:onClick="@{(v) -> player.switchToPopupAndHome()}"
+                    android:scaleType="center"
+                    tools:visibility="visible"
+                    vlc:layout_constraintBottom_toBottomOf="@id/player_overlay_play"
+                    vlc:layout_constraintEnd_toStartOf="@id/player_resize"
+                    vlc:layout_constraintStart_toEndOf="@id/player_space_right"
+                    vlc:layout_constraintTop_toTopOf="@id/player_overlay_play"
+                    vlc:srcCompat="@drawable/ic_popup_dim" />
 
             <ImageView
                     android:id="@+id/player_resize"
@@ -510,7 +528,7 @@
                     tools:visibility="visible"
                     vlc:layout_constraintBottom_toBottomOf="@+id/player_overlay_play"
                     vlc:layout_constraintEnd_toStartOf="@+id/player_overlay_adv_function"
-                    vlc:layout_constraintStart_toEndOf="@+id/player_space_right"
+                    vlc:layout_constraintStart_toEndOf="@+id/player_popup"
                     vlc:layout_constraintTop_toTopOf="@+id/player_overlay_play"
                     vlc:srcCompat="@drawable/ic_player_ratio" />
 
