@@ -44,8 +44,8 @@
     <dimen name="tv_overscan_horizontal_progressbar">32dp</dimen>
 
 
-    <dimen name="video_pip_width">240dp</dimen>
-    <dimen name="video_pip_height">135dp</dimen>
+    <dimen name="video_pip_width">360dp</dimen>
+    <dimen name="video_pip_height">202dp</dimen>
 
     <!-- Adv options -->
     <dimen name="option_width">64dp</dimen>
