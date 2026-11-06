@@ -859,6 +859,28 @@
     <!-- VLMe accent color overlays. Applied on top of the base theme via
          UiTools.applyAccentOverlay() according to the app_accent_color
          preference. VLC orange needs no overlay: it is the base theme. -->
+    <!-- Base style for the accent overlays below. The preset styles use
+         dotted names (ThemeOverlay.VLMe.Accent.<Color>) with no explicit
+         parent, so AAPT resolves their parent implicitly as this style;
+         it must exist or resource linking fails. Its values mirror the
+         VLC-orange base theme, so a preset that omits an item falls back
+         to orange. This base style itself needs an explicit parent, or
+         AAPT would fail the same way on its own implicit parent
+         (ThemeOverlay.VLMe). ThemeOverlay.MaterialComponents is already
+         referenced elsewhere in this file and links fine. -->
+    <style name="ThemeOverlay.VLMe.Accent" parent="ThemeOverlay.MaterialComponents">
+        <item name="colorPrimary">@color/orange800</item>
+        <item name="colorPrimaryDark">@color/orange700</item>
+        <item name="colorSecondary">@color/orange800</item>
+        <item name="colorAccent">@color/orange800</item>
+        <item name="colorControlHighlight">@color/orange800</item>
+        <item name="android:colorControlHighlight">@color/orange800</item>
+        <item name="audio_browser_separator">@color/orange800</item>
+        <item name="donate_card">@color/orange500</item>
+        <item name="bottom_navigation_focus">@color/orange_800_transparent_10</item>
+        <item name="primary_focus">@color/orange_800_transparent_20</item>
+    </style>
+
     <style name="ThemeOverlay.VLMe.Accent.Blue">
         <item name="colorPrimary">@color/accent_blue</item>
         <item name="colorPrimaryDark">@color/accent_blue_dark</item>
