@@ -32,11 +32,10 @@ jobs:
       # Mirrors upstream continuous-app-build: clones libvlcjni + VLC sources
       # and generates the gradle wrapper (repo ships no gradlew).
       - name: Init build environment
-        env:
-          ANDROID_SDK: ${{ env.ANDROID_HOME }}
-          ANDROID_NDK: ${{ env.ANDROID_HOME }}/ndk/21.4.7075529
         run: |
           export PATH="$ANDROID_HOME/cmake/3.22.1/bin:$PATH"
+          export ANDROID_SDK="$ANDROID_HOME"
+          export ANDROID_NDK="$ANDROID_HOME/ndk/21.4.7075529"
           ./buildsystem/compile.sh --init
 
       - name: Build debug APK
