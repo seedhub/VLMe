@@ -68,8 +68,6 @@ import org.videolan.resources.HEADER_MOVIES
 import org.videolan.resources.HEADER_NETWORK
 import org.videolan.resources.HEADER_PERMISSION
 import org.videolan.resources.HEADER_PLAYLISTS
-import org.videolan.resources.HEADER_SERVER
-import org.videolan.resources.HEADER_STREAM
 import org.videolan.resources.HEADER_TV_SHOW
 import org.videolan.resources.HEADER_VIDEO
 import org.videolan.resources.util.getFromMl
@@ -77,7 +75,6 @@ import org.videolan.television.ui.FAVORITE_FLAG
 import org.videolan.television.ui.MainTvActivity
 import org.videolan.television.ui.NowPlayingDelegate
 import org.videolan.television.ui.audioplayer.AudioPlayerActivity
-import org.videolan.television.ui.browser.TVActivity
 import org.videolan.television.ui.browser.VerticalGridActivity
 import org.videolan.tools.NetworkMonitor
 import org.videolan.tools.PLAYBACK_HISTORY
@@ -86,7 +83,6 @@ import org.videolan.tools.getContextWithLocale
 import org.videolan.vlc.ExternalMonitor
 import org.videolan.vlc.PlaybackService
 import org.videolan.vlc.R
-import org.videolan.vlc.gui.DialogActivity
 import org.videolan.vlc.gui.helpers.hf.StoragePermissionsDelegate.Companion.askStoragePermission
 import org.videolan.vlc.media.MediaUtils
 import org.videolan.vlc.media.PlaylistManager
@@ -280,11 +276,6 @@ class MainTvModel(app: Application) : AndroidViewModel(app), Medialibrary.OnMedi
         if (!showInternalStorage && directories.isNotEmpty()) directories.removeAt(0)
         directories.forEach { if (it.location.scanAllowed()) list.add(it) }
 
-        if (networkMonitor.isLan) {
-            list.add(DummyItem(HEADER_NETWORK, context.getString(R.string.network_browsing), null))
-            list.add(DummyItem(HEADER_STREAM, context.getString(R.string.streams), null))
-            list.add(DummyItem(HEADER_SERVER, context.getString(R.string.server_add_title), null))
-        }
         (browsers as MutableLiveData).value = list
         delay(500L)
     }
@@ -330,13 +321,6 @@ class MainTvModel(app: Application) : AndroidViewModel(app), Medialibrary.OnMedi
             }
             is DummyItem -> when (item.id) {
                 HEADER_PERMISSION -> activity.askStoragePermission(false, null)
-                HEADER_STREAM -> {
-                    val intent = Intent(activity, TVActivity::class.java)
-                    intent.putExtra(MainTvActivity.BROWSER_TYPE, HEADER_STREAM)
-                    activity.startActivity(intent)
-                }
-                HEADER_SERVER -> activity.startActivity(Intent(activity, DialogActivity::class.java).setAction(DialogActivity.KEY_SERVER)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 else -> {
                     val intent = Intent(activity, VerticalGridActivity::class.java)
                     intent.putExtra(MainTvActivity.BROWSER_TYPE, item.id)

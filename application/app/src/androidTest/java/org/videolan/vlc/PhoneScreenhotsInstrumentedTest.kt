@@ -142,7 +142,7 @@ class PhoneScreenhotsInstrumentedTest : BaseUITest() {
     fun testTakeScreenshotBrowser() {
         onView(AllOf.allOf(withId(R.id.nav_directories), withEffectiveVisibility(Visibility.VISIBLE)))
                  .perform(click())
-        waitUntilLoaded { activity.findViewById<TitleListView>(R.id.network_browser_entry).findViewById(R.id.list) }
+        waitUntilLoaded { activity.findViewById<TitleListView>(R.id.local_browser_entry).findViewById(R.id.list) }
 
         ScreenshotUtil.takeScreenshot(5,"browser")
      }

@@ -58,7 +58,6 @@ import org.videolan.television.ui.browser.interfaces.DetailsFragment
 import org.videolan.vlc.BuildConfig
 import org.videolan.vlc.interfaces.BrowserFragmentInterface
 import org.videolan.vlc.viewmodels.browser.TYPE_FILE
-import org.videolan.vlc.viewmodels.browser.TYPE_NETWORK
 
 @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
 class VerticalGridActivity : BaseTvActivity(), BrowserActivityInterface {
@@ -83,14 +82,6 @@ class VerticalGridActivity : BaseTvActivity(), BrowserActivityInterface {
                     CATEGORY_ARTISTS -> fragment = MediaBrowserTvFragment.newInstance(CATEGORY_ARTISTS, item)
                     CATEGORY_GENRES -> fragment = MediaBrowserTvFragment.newInstance(CATEGORY_GENRES, item)
                 }
-            } else if (type == HEADER_NETWORK) {
-                var uri = intent.data
-                if (uri == null) uri = intent.parcelable(KEY_URI)
-
-                val item = if (uri == null) null else MLServiceLocator.getAbstractMediaWrapper(uri)
-                if (item != null && intent.hasExtra(FAVORITE_TITLE)) item.title = intent.getStringExtra(FAVORITE_TITLE)
-
-                fragment = FileBrowserTvFragment.newInstance(TYPE_NETWORK, item, item === null)
             } else if (type == HEADER_MOVIES || type == HEADER_TV_SHOW) {
                 fragment = MediaScrapingBrowserTvFragment.newInstance(type)
             } else if (type == HEADER_DIRECTORIES) {

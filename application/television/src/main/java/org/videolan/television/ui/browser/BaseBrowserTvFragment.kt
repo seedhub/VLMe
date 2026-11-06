@@ -62,7 +62,6 @@ import org.videolan.vlc.util.RefreshModel
 import org.videolan.vlc.util.getScreenWidth
 import org.videolan.vlc.viewmodels.SortableModel
 import org.videolan.vlc.viewmodels.browser.TYPE_FILE
-import org.videolan.vlc.viewmodels.browser.TYPE_NETWORK
 import org.videolan.vlc.viewmodels.tv.TvBrowserModel
 
 private const val TAG = "MediaBrowserTvFragment"
@@ -122,7 +121,7 @@ abstract class BaseBrowserTvFragment<T> : Fragment(), BrowserFragmentInterface, 
 
         binding.title.text = viewModel.currentItem?.let {
             when (it) {
-                is MediaLibraryItem -> if (getCategory() == TYPE_NETWORK || getCategory() == TYPE_FILE) {
+                is MediaLibraryItem -> if (getCategory() == TYPE_FILE) {
                     ""
                 } else it.title
                 else -> ""

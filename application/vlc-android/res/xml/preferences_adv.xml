@@ -11,30 +11,6 @@
             android:key="optional_features"
             android:fragment="org.videolan.television.ui.preferences.PreferencesOptional"/>
 
-    <EditTextPreference
-            android:defaultValue="0"
-            android:key="network_caching"
-            android:maxLength="5"
-            android:summary="@string/network_caching_summary"
-            android:title="@string/network_caching"/>
-
-    <CheckBoxPreference
-            app:singleLineTitle="false"
-            android:defaultValue="true"
-            android:key="prefer_smbv1"
-            android:summary="@string/prefersmbv1_summary"
-            android:title="@string/prefersmbv1"/>
-
-    <EditTextPreference
-            android:defaultValue=""
-            android:inputType="textMultiLine"
-            android:key="http_user_agent"
-            app:useSimpleSummaryProvider="true"
-            android:singleLine="false"
-            android:title="@string/http_user_agent"/>
-
-
-
     <Preference
             android:enabled="true"
             android:key="quit_app"

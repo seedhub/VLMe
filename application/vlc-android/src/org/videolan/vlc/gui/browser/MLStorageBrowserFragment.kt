@@ -40,7 +40,6 @@ import org.videolan.medialibrary.MLServiceLocator
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.medialibrary.media.MediaLibraryItem
 import org.videolan.medialibrary.media.Storage
-import org.videolan.tools.NetworkMonitor
 import org.videolan.tools.setGone
 import org.videolan.tools.stripTrailingSlash
 import org.videolan.vlc.R
@@ -52,13 +51,11 @@ import org.videolan.vlc.gui.dialogs.showContext
 import org.videolan.vlc.gui.helpers.ThreeStatesCheckbox
 import org.videolan.vlc.gui.helpers.UiTools
 import org.videolan.vlc.gui.view.EmptyLoadingState
-import org.videolan.vlc.gui.view.EmptyLoadingStateView
 import org.videolan.vlc.gui.view.TitleListView
 import org.videolan.vlc.util.ContextOption
 import org.videolan.vlc.util.ContextOption.CTX_CUSTOM_REMOVE
 import org.videolan.vlc.util.FlagSet
 import org.videolan.vlc.viewmodels.browser.BrowserModel
-import org.videolan.vlc.viewmodels.browser.TYPE_NETWORK
 import org.videolan.vlc.viewmodels.browser.TYPE_STORAGE
 import org.videolan.vlc.viewmodels.browser.getBrowserModel
 import java.io.File
@@ -68,10 +65,7 @@ private const val FROM_ONBOARDING = "from_onboarding"
 class MLStorageBrowserFragment : BaseFragment(), IStorageFragmentDelegate by StorageFragmentDelegate(), CtxActionReceiver {
 
     private lateinit var localEntry: TitleListView
-    private lateinit var networkEntry: TitleListView
-    private lateinit var networkMonitor: NetworkMonitor
     private lateinit var localViewModel: BrowserModel
-    private lateinit var networkViewModel: BrowserModel
     private lateinit var storageBrowserAdapter: StorageBrowserAdapter
 
     private var alertDialog: AlertDialog? = null
@@ -87,7 +81,6 @@ class MLStorageBrowserFragment : BaseFragment(), IStorageFragmentDelegate by Sto
     override fun hasFAB() = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        networkMonitor = NetworkMonitor.getInstance(requireContext())
         withContext(requireActivity())
         super.onCreate(savedInstanceState)
     }
@@ -134,55 +127,8 @@ class MLStorageBrowserFragment : BaseFragment(), IStorageFragmentDelegate by Sto
             if (pair != null) storageBrowserAdapter.notifyItemChanged(pair.first, pair.second)
         }
 
-        networkEntry = view.findViewById(R.id.network_browser_entry)
-        networkEntry.loading.showNoMedia = false
-        networkEntry.loading.emptyText = getString(R.string.nomedia)
-        val networkAdapter = StorageBrowserAdapter(getBrowserContainer(true))
-        networkEntry.list.adapter = networkAdapter
-        networkViewModel = getBrowserModel(category = TYPE_NETWORK, url = null)
-        networkViewModel.dataset.observe(viewLifecycleOwner) { list ->
-            list?.let {
-                val filtered = it.filter { item -> item is MediaWrapper && item.uri?.scheme == "smb" }
-                networkAdapter.update(filtered)
-                updateNetworkEmptyView(networkEntry.loading)
-                if (networkViewModel.loading.value == false) networkEntry.loading.state = if (list.isEmpty()) EmptyLoadingState.EMPTY else EmptyLoadingState.NONE
-            }
-        }
-        networkViewModel.loading.observe(viewLifecycleOwner) {
-            if (it) networkEntry.loading.state = EmptyLoadingState.LOADING
-            updateNetworkEmptyView(networkEntry.loading)
-        }
-        networkViewModel.browseRoot()
-
         localEntry.displayInCards = false
-        networkEntry.displayInCards = false
-        withAdapters(arrayOf(storageBrowserAdapter, networkAdapter))
-    }
-
-    private fun updateNetworkEmptyView(emptyLoading: EmptyLoadingStateView) {
-        if (networkMonitor.connected) {
-            if (networkViewModel.isEmpty()) {
-                if (networkViewModel.loading.value == true) {
-                    emptyLoading.state = EmptyLoadingState.LOADING
-                } else {
-                    if (networkMonitor.lanAllowed) {
-                        emptyLoading.state = EmptyLoadingState.LOADING
-                        emptyLoading.loadingText = getString(R.string.network_shares_discovery)
-                    } else {
-                        emptyLoading.state = EmptyLoadingState.EMPTY
-                        emptyLoading.emptyText = getString(R.string.network_connection_needed)
-                    }
-                    networkEntry.list.visibility = View.GONE
-                }
-            } else {
-                emptyLoading.state = EmptyLoadingState.NONE
-                networkEntry.list.visibility = View.VISIBLE
-            }
-        } else {
-            emptyLoading.state = EmptyLoadingState.EMPTY
-            emptyLoading.emptyText = getString(R.string.network_connection_needed)
-            networkEntry.list.visibility = View.GONE
-        }
+        withAdapters(arrayOf(storageBrowserAdapter))
     }
 
     override fun onPrepareOptionsMenu(menu: Menu) {

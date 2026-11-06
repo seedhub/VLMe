@@ -87,7 +87,6 @@ object PreferenceVisibilityManager {
         KEY_AOUT -> VlcMigrationHelper.getAudioOutputFromDevice() == VlcMigrationHelper.AudioOutput.ALL
         KEY_AUDIO_DIGITAL_OUTPUT -> sharedPreferences.getString(KEY_AOUT, "0") != "2"
         "optional_features" -> FeatureFlag.entries.isNotEmpty()
-        "remote_access_category" -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1
         "permissions_title" -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1
         else -> true
     }

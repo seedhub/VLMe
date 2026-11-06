@@ -42,7 +42,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.StringRes
-import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.ViewStubCompat
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
@@ -69,7 +68,6 @@ import org.videolan.tools.ALLOW_FOLD_AUTO_LAYOUT
 import org.videolan.tools.ENABLE_SEEK_BUTTONS
 import org.videolan.tools.HINGE_ON_RIGHT
 import org.videolan.tools.KEY_ALWAYS_FAST_SEEK
-import org.videolan.tools.KEY_ENABLE_CASTING
 import org.videolan.tools.KEY_ENABLE_CLONE_MODE
 import org.videolan.tools.KEY_PLAYBACK_SPEED_VIDEO_GLOBAL
 import org.videolan.tools.SCREENSHOT_MODE
@@ -85,7 +83,6 @@ import org.videolan.tools.setInvisible
 import org.videolan.tools.setVisible
 import org.videolan.vlc.PlaybackService
 import org.videolan.vlc.R
-import org.videolan.vlc.RendererDelegate
 import org.videolan.vlc.VlcMigrationHelper
 import org.videolan.vlc.databinding.PlayerHudBinding
 import org.videolan.vlc.databinding.PlayerHudRightBinding
@@ -609,11 +606,6 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
                 hudBinding.lifecycleOwner = player
                 updateOrientationIcon()
                 overlayBackground = player.findViewById(R.id.player_overlay_background)
-                if (!AndroidDevices.isChromeBook && !player.isTv
-                        && player.settings.getBoolean(KEY_ENABLE_CASTING, true)) {
-                    PlaybackService.renderer.observe(player) { rendererItem -> hudRightBinding.videoRenderer.setImageDrawable(AppCompatResources.getDrawable(player, if (rendererItem == null) R.drawable.ic_player_renderer else R.drawable.ic_player_renderer_on)) }
-                    RendererDelegate.renderers.observe(player) { updateRendererVisibility() }
-                }
 
                 setTitle(service.currentMediaWrapper?.title)
                 manageTitleConstraints()
@@ -697,7 +689,6 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
         }
         if (::hudRightBinding.isInitialized){
             hudRightBinding.playerOverlayNavmenu.setOnClickListener(if (enabled) player else null)
-            UiTools.setViewOnClickListener(hudRightBinding.videoRenderer, if (enabled) player else null)
             hudRightBinding.playbackSpeedQuickAction.setOnLongClickListener {
                 player.service?.setRate(1F, true)
                 showControls(true)
@@ -792,10 +783,6 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
         showInfo(string, 1000)
         updateOrientationIcon()
         showOverlay()
-    }
-
-    fun updateRendererVisibility() {
-        if (::hudRightBinding.isInitialized) hudRightBinding.videoRenderer.visibility = if (player.isLocked || RendererDelegate.renderers.value.isNullOrEmpty()) View.GONE else View.VISIBLE
     }
 
     private val titleConstraintSetLandscape = ConstraintSet()

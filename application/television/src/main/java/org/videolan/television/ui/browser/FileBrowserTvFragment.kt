@@ -40,7 +40,6 @@ import org.videolan.vlc.gui.view.VLCDividerItemDecoration
 import org.videolan.vlc.interfaces.IEventsHandler
 import org.videolan.vlc.providers.BrowserProvider
 import org.videolan.vlc.repository.BrowserFavRepository
-import org.videolan.vlc.util.DialogDelegate
 import org.videolan.vlc.util.FileUtils
 import org.videolan.vlc.util.IDialogManager
 import org.videolan.vlc.util.isSchemeSupported
@@ -48,7 +47,6 @@ import org.videolan.vlc.util.onAnyChange
 import org.videolan.vlc.viewmodels.browser.BrowserModel
 import org.videolan.vlc.viewmodels.browser.IPathOperationDelegate
 import org.videolan.vlc.viewmodels.browser.TYPE_FILE
-import org.videolan.vlc.viewmodels.browser.TYPE_NETWORK
 import org.videolan.vlc.viewmodels.browser.getBrowserModel
 
 private const val TAG = "FileBrowserTvFragment"
@@ -61,20 +59,18 @@ class FileBrowserTvFragment : BaseBrowserTvFragment<MediaLibraryItem>(), PathAda
     private lateinit var browserFavRepository: BrowserFavRepository
     private var currentItem: MediaLibraryItem? = null
     override lateinit var adapter: TvItemAdapter
-    private val dialogsDelegate by lazy(LazyThreadSafetyMode.NONE) { DialogDelegate() }
 
     var mrl: String? = null
 
     override fun getTitle() = when (getCategory()) {
         TYPE_FILE -> getString(R.string.directories)
-        TYPE_NETWORK -> getString(R.string.network_browsing)
         else -> getString(R.string.video)
     }
 
     override fun getColumnNumber() = resources.getInteger(R.integer.tv_songs_col_count)
 
     override fun provideAdapter(eventsHandler: IEventsHandler<MediaLibraryItem>, itemSize: Int): TvItemAdapter {
-        val fileTvItemAdapter = FileTvItemAdapter(this, itemSize, isRootLevel && getCategory() == TYPE_NETWORK)
+        val fileTvItemAdapter = FileTvItemAdapter(this, itemSize, false)
         // restore the position from the source when navigating from Arian
         dataObserver = fileTvItemAdapter.onAnyChange {
             val source = (viewModel as IPathOperationDelegate).getSource()
@@ -119,10 +115,6 @@ class FileBrowserTvFragment : BaseBrowserTvFragment<MediaLibraryItem>(), PathAda
 
         viewModel.currentItem = currentItem
         browserFavRepository = BrowserFavRepository.getInstance(requireContext())
-
-        if (getCategory() == TYPE_NETWORK) {
-            dialogsDelegate.observeDialogs(this, this)
-        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

@@ -49,14 +49,11 @@ import org.videolan.resources.CATEGORY_ALBUMS
 import org.videolan.resources.HEADER_CATEGORIES
 import org.videolan.resources.HEADER_DIRECTORIES
 import org.videolan.resources.HEADER_NETWORK
-import org.videolan.resources.HEADER_SERVER
-import org.videolan.resources.HEADER_STREAM
 import org.videolan.resources.UPDATE_DESCRIPTION
 import org.videolan.resources.UPDATE_SEEN
 import org.videolan.resources.UPDATE_THUMB
 import org.videolan.resources.UPDATE_TIME
 import org.videolan.television.ui.audioplayer.AudioPlayerActivity
-import org.videolan.television.ui.browser.TVActivity
 import org.videolan.television.ui.browser.VerticalGridActivity
 import org.videolan.television.ui.details.MediaListActivity
 import org.videolan.tools.HttpImageLoader
@@ -64,7 +61,6 @@ import org.videolan.tools.PLAYLIST_MODE_VIDEO
 import org.videolan.tools.Settings
 import org.videolan.tools.getposition
 import org.videolan.vlc.R
-import org.videolan.vlc.gui.DialogActivity
 import org.videolan.vlc.gui.helpers.AudioUtil
 import org.videolan.vlc.gui.helpers.BitmapUtil
 import org.videolan.vlc.gui.helpers.UiTools
@@ -158,13 +154,6 @@ object TvUtil {
                 }
             }
             is DummyItem -> when (item.id) {
-                HEADER_STREAM -> {
-                    val intent = Intent(activity, TVActivity::class.java)
-                    intent.putExtra(MainTvActivity.BROWSER_TYPE, HEADER_STREAM)
-                    activity.startActivity(intent)
-                }
-                HEADER_SERVER -> activity.startActivity(Intent(activity, DialogActivity::class.java).setAction(DialogActivity.KEY_SERVER)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 else -> {
                     val intent = Intent(activity, VerticalGridActivity::class.java)
                     intent.putExtra(MainTvActivity.BROWSER_TYPE, item.id)
@@ -202,13 +191,6 @@ object TvUtil {
                 }
             }
             is DummyItem -> when (item.id) {
-                HEADER_STREAM -> {
-                    val intent = Intent(activity, TVActivity::class.java)
-                    intent.putExtra(MainTvActivity.BROWSER_TYPE, HEADER_STREAM)
-                    activity.startActivity(intent)
-                }
-                HEADER_SERVER -> activity.startActivity(Intent(activity, DialogActivity::class.java).setAction(DialogActivity.KEY_SERVER)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 else -> {
                     val intent = Intent(activity, VerticalGridActivity::class.java)
                     intent.putExtra(MainTvActivity.BROWSER_TYPE, item.id)
@@ -245,13 +227,6 @@ object TvUtil {
                 }
             }
             is DummyItem -> when (item.id) {
-                HEADER_STREAM -> {
-                    val intent = Intent(activity, TVActivity::class.java)
-                    intent.putExtra(MainTvActivity.BROWSER_TYPE, HEADER_STREAM)
-                    activity.startActivity(intent)
-                }
-                HEADER_SERVER -> activity.startActivity(Intent(activity, DialogActivity::class.java).setAction(DialogActivity.KEY_SERVER)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 else -> {
                     val intent = Intent(activity, VerticalGridActivity::class.java)
                     intent.putExtra(MainTvActivity.BROWSER_TYPE, item.id)

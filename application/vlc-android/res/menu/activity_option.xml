@@ -26,14 +26,6 @@
             android:visible="false"
             vlc:showAsAction="always" />
     <item
-            android:id="@+id/ml_menu_renderers"
-            android:icon="@drawable/ic_renderer"
-            android:orderInCategory="1"
-            android:title="@string/cast_option_title"
-            android:visible="false"
-            vlc:showAsAction="always|collapseActionView" />
-
-    <item
             android:id="@+id/ml_menu_filter"
             android:icon="@drawable/ic_search"
             android:orderInCategory="1"
@@ -77,13 +69,6 @@
             android:icon="@drawable/ic_view_list"
             android:visible="false"/>
 
-    <item
-            android:orderInCategory="3"
-            android:id="@+id/browse_network"
-            android:title="@string/browse_network"
-            android:checkable="true"
-            vlc:showAsAction="never"
-            android:visible="false"/>
     <item
             android:orderInCategory="3"
             android:id="@+id/ml_menu_display_grid"
@@ -168,13 +153,6 @@
                     android:title="@string/all_subfolders" />
         </menu>
     </item>
-    <item
-            android:id="@+id/add_server_favorite"
-            android:orderInCategory="3"
-            android:title="@string/add_server_favorite"
-            android:visible="false"
-            vlc:showAsAction="never" />
-
     <item
             android:id="@+id/pin_unlock"
             android:icon="@drawable/ic_pin_unlock"

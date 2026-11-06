@@ -39,16 +39,12 @@ import org.videolan.libvlc.LibVLCFactory
 import org.videolan.libvlc.MediaFactory
 import org.videolan.libvlc.interfaces.ILibVLCFactory
 import org.videolan.libvlc.interfaces.IMediaFactory
-import org.videolan.mobile.app.delegates.IIndexersDelegate
 import org.videolan.mobile.app.delegates.IMediaContentDelegate
-import org.videolan.mobile.app.delegates.IndexersDelegate
 import org.videolan.mobile.app.delegates.MediaContentDelegate
 import org.videolan.resources.AndroidDevices
 import org.videolan.resources.AppContextProvider
 import org.videolan.resources.VLCInstance
-import org.videolan.resources.util.startRemoteAccess
 import org.videolan.tools.AppScope
-import org.videolan.tools.KEY_ENABLE_REMOTE_ACCESS
 import org.videolan.tools.KEY_INCOGNITO
 import org.videolan.tools.KEY_PERSISTENT_INCOGNITO
 import org.videolan.tools.KEY_SET_LOCALE
@@ -72,8 +68,7 @@ interface AppDelegate {
 }
 
 class AppSetupDelegate : AppDelegate,
-        IMediaContentDelegate by MediaContentDelegate(),
-        IIndexersDelegate by IndexersDelegate() {
+        IMediaContentDelegate by MediaContentDelegate() {
 
     // Store AppContextProvider to prevent GC
     override val appContextProvider = AppContextProvider
@@ -93,9 +88,6 @@ class AppSetupDelegate : AppDelegate,
             if (Settings.showTvUi) {
                 // Register movipedia to resume tv shows/movies
                 setupContentResolvers()
-
-                // Setup Moviepedia indexing after Medialibrary scan
-                setupIndexers()
             }
         }
         //App restarted, leave the incognito mode
@@ -107,8 +99,6 @@ class AppSetupDelegate : AppDelegate,
 
         //Initiate Kotlinx Dispatchers in a thread to prevent ANR
         backgroundInit()
-        if (settings.getBoolean(KEY_ENABLE_REMOTE_ACCESS, false))
-            startRemoteAccess()
 
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityResumed(activity: Activity) {

@@ -46,9 +46,7 @@ import org.videolan.resources.AppContextProvider
 import org.videolan.resources.CRASH_HAPPENED
 import org.videolan.resources.CRASH_ML_CTX
 import org.videolan.resources.CRASH_ML_MSG
-import org.videolan.resources.TV_PREFERENCE_ACTIVITY
 import org.videolan.resources.util.applyOverscanMargin
-import org.videolan.tools.Settings
 import org.videolan.tools.isVisible
 import org.videolan.tools.setGone
 import org.videolan.tools.setVisible
@@ -58,8 +56,6 @@ import org.videolan.vlc.R
 import org.videolan.vlc.databinding.AboutFeedbackActivityBinding
 import org.videolan.vlc.gui.helpers.FeedbackUtil
 import org.videolan.vlc.gui.helpers.UiTools
-import org.videolan.vlc.gui.preferences.EXTRA_PREF_END_POINT
-import org.videolan.vlc.gui.preferences.PreferencesActivity
 import org.videolan.vlc.util.FileUtils
 import org.videolan.vlc.util.Permissions
 import org.videolan.vlc.util.TextUtils
@@ -181,22 +177,11 @@ class FeedbackActivity : BaseActivity(), DebugLogService.Client.Callback {
             binding.feedbackTypeEntry.showDropDown()
         }
         binding.feedbackTypeEntry.setText(feedbackTypeEntries[0], false)
-        binding.emailWarningExplanation.text = getString(R.string.feedback_email_warning_explanation, getString(R.string.remote_access), getString(R.string.send_feedback))
+        binding.emailWarningExplanation.text = getString(R.string.feedback_email_warning_explanation)
         binding.tryAnyway.setOnClickListener {
             binding.emailWarning.setGone()
             switchFormVisibility()
             updateFormIncludesVisibility()
-        }
-        binding.openSettings.setOnClickListener {
-            lifecycleScope.launch {
-                if (Settings.tvUI) {
-                    val intent = Intent(Intent.ACTION_VIEW).setClassName(this@FeedbackActivity, TV_PREFERENCE_ACTIVITY)
-                    intent.putExtra(EXTRA_PREF_END_POINT, "remote_access_category")
-                    startActivity(intent)
-                }
-                else
-                    PreferencesActivity.launchWithPref(this@FeedbackActivity, "enable_remote_access")
-            }
         }
         binding.emailSupportCard.setOnClickListener {
             if (!isMailClientPresent()) {
@@ -274,8 +259,8 @@ class FeedbackActivity : BaseActivity(), DebugLogService.Client.Callback {
         switchFormVisibility(true)
         if (!binding.emailWarning.isVisible()) {
             binding.emailWarning.setVisible()
-            binding.emailSupportCard.nextFocusDownId = R.id.open_settings
-            binding.emailSupportCard.nextFocusRightId = R.id.open_settings
+            binding.emailSupportCard.nextFocusDownId = R.id.try_anyway
+            binding.emailSupportCard.nextFocusRightId = R.id.try_anyway
         } else {
             binding.emailWarning.setGone()
             binding.emailSupportCard.nextFocusDownId = R.id.read_doc_card

@@ -42,11 +42,7 @@ import kotlinx.coroutines.withContext
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.medialibrary.media.MediaLibraryItem
 import org.videolan.medialibrary.media.MediaWrapperImpl
-import org.videolan.resources.EXTRA_FOR_ESPRESSO
-import org.videolan.resources.util.parcelableList
-import org.videolan.tools.KEY_BROWSE_NETWORK
 import org.videolan.tools.KEY_NAVIGATOR_SCREEN_UNSTABLE
-import org.videolan.tools.NetworkMonitor
 import org.videolan.tools.Settings
 import org.videolan.tools.isStarted
 import org.videolan.tools.putSingle
@@ -58,7 +54,6 @@ import org.videolan.vlc.gui.SecondaryActivity
 import org.videolan.vlc.gui.dialogs.CONFIRM_PERMISSION_CHANGED
 import org.videolan.vlc.gui.dialogs.CtxActionReceiver
 import org.videolan.vlc.gui.dialogs.KEY_PERMISSION_CHANGED
-import org.videolan.vlc.gui.dialogs.NetworkServerDialog
 import org.videolan.vlc.gui.dialogs.showContext
 import org.videolan.vlc.gui.helpers.UiTools.addToPlaylist
 import org.videolan.vlc.gui.helpers.UiTools.addToPlaylistAsync
@@ -67,7 +62,6 @@ import org.videolan.vlc.gui.helpers.hf.OTG_SCHEME
 import org.videolan.vlc.gui.helpers.hf.OtgAccess
 import org.videolan.vlc.gui.helpers.hf.requestOtgRoot
 import org.videolan.vlc.gui.view.EmptyLoadingState
-import org.videolan.vlc.gui.view.EmptyLoadingStateView
 import org.videolan.vlc.gui.view.TitleListView
 import org.videolan.vlc.media.MediaUtils
 import org.videolan.vlc.repository.BrowserFavRepository
@@ -75,21 +69,17 @@ import org.videolan.vlc.util.ContextOption
 import org.videolan.vlc.util.ContextOption.CTX_ADD_FOLDER_AND_SUB_PLAYLIST
 import org.videolan.vlc.util.ContextOption.CTX_ADD_FOLDER_PLAYLIST
 import org.videolan.vlc.util.ContextOption.CTX_FAV_ADD
-import org.videolan.vlc.util.ContextOption.CTX_FAV_EDIT
 import org.videolan.vlc.util.ContextOption.CTX_FAV_REMOVE
 import org.videolan.vlc.util.ContextOption.CTX_PLAY
 import org.videolan.vlc.util.FlagSet
 import org.videolan.vlc.util.Permissions
-import org.videolan.vlc.util.isSchemeFavoriteEditable
 import org.videolan.vlc.viewmodels.browser.BrowserFavoritesModel
 import org.videolan.vlc.viewmodels.browser.BrowserModel
 import org.videolan.vlc.viewmodels.browser.TYPE_FILE
-import org.videolan.vlc.viewmodels.browser.TYPE_NETWORK
 import org.videolan.vlc.viewmodels.browser.getBrowserModel
 
 class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionReceiver {
 
-    private lateinit var networkMonitor: NetworkMonitor
     private var currentCtx: MainBrowserContainer? = null
     private lateinit var browserFavRepository: BrowserFavRepository
     private lateinit var localEntry: TitleListView
@@ -97,9 +87,6 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
 
     private lateinit var favoritesEntry: TitleListView
     private lateinit var favoritesViewModel: BrowserFavoritesModel
-
-    private lateinit var networkEntry: TitleListView
-    private lateinit var networkViewModel: BrowserModel
 
     private var currentAdapterActionMode: BaseBrowserAdapter? = null
 
@@ -141,9 +128,6 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
 
         menu.findItem(R.id.ml_menu_display_grid).isVisible = displayInList
         menu.findItem(R.id.ml_menu_display_list).isVisible = !displayInList
-        menu.findItem(R.id.add_server_favorite).isVisible = true
-        menu.findItem(R.id.browse_network)?.isVisible = true
-        menu.findItem(R.id.browse_network)?.isChecked = Settings.getInstance(requireActivity()).getBoolean(KEY_BROWSE_NETWORK, true)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -155,25 +139,8 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
                 }
                 localEntry.displayInCards = !displayInList
                 favoritesEntry.displayInCards = !displayInList
-                networkEntry.displayInCards = !displayInList
                 activity?.invalidateOptionsMenu()
                 Settings.getInstance(requireActivity()).putSingle(displayInListKey, displayInList)
-                true
-            }
-            R.id.browse_network -> {
-                lifecycleScope.launch {
-                    item.isChecked = !item.isChecked
-                    Settings.getInstance(requireActivity()).putSingle(KEY_BROWSE_NETWORK, item.isChecked)
-                    if (!item.isChecked) {
-                        networkViewModel.provider.stop()
-                        networkViewModel.provider.dataset.clear()
-                    }
-                    networkViewModel.refresh()
-                }
-                true
-            }
-            R.id.add_server_favorite -> {
-                showAddServerDialog(null)
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -200,11 +167,9 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
             putBoolean(KEY_NAVIGATOR_SCREEN_UNSTABLE, true)
         }
         browserFavRepository = BrowserFavRepository.getInstance(requireContext())
-        networkMonitor = NetworkMonitor.getInstance(requireContext())
         super.onCreate(savedInstanceState)
         localViewModel = getBrowserModel(category = TYPE_FILE, url = null)
         favoritesViewModel = BrowserFavoritesModel(requireContext())
-        networkViewModel = getBrowserModel(category = TYPE_NETWORK, url = null, mocked = arguments?.parcelableList(EXTRA_FOR_ESPRESSO))
     }
 
     override fun onPause() {
@@ -269,29 +234,8 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
             if (pair != null) favoritesAdapter.notifyItemChanged(pair.first, pair.second)
         }
 
-        networkEntry = view.findViewById(R.id.network_browser_entry)
-        networkEntry.loading.showNoMedia = false
-        networkEntry.loading.emptyText = getString(R.string.nomedia)
-        val networkBrowserContainer = MainBrowserContainer(isNetwork = true, isFile = false, inCards = !displayInList)
-        val networkAdapter = BaseBrowserAdapter(networkBrowserContainer)
-        networkEntry.list.adapter = networkAdapter
-        containerAdapterAssociation[networkBrowserContainer] = Pair(networkAdapter, networkViewModel)
-        networkViewModel.dataset.observe(viewLifecycleOwner) { list ->
-            list?.let {
-                networkAdapter.update(it)
-                updateNetworkEmptyView(networkEntry.loading)
-                if (networkViewModel.loading.value == false) networkEntry.loading.state = if (list.isEmpty()) EmptyLoadingState.EMPTY else EmptyLoadingState.NONE
-            }
-        }
-        networkViewModel.loading.observe(viewLifecycleOwner) {
-            if (it) networkEntry.loading.state = EmptyLoadingState.LOADING
-            updateNetworkEmptyView(networkEntry.loading)
-        }
-        networkViewModel.browseRoot()
-
         localEntry.displayInCards = !displayInList
         favoritesEntry.displayInCards = !displayInList
-        networkEntry.displayInCards = !displayInList
 
         requireActivity().supportFragmentManager.setFragmentResultListener(CONFIRM_PERMISSION_CHANGED, viewLifecycleOwner) { requestKey, bundle ->
             val changed = bundle.getBoolean(KEY_PERMISSION_CHANGED)
@@ -315,50 +259,7 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
         requiringOtg = false
     }
 
-    private fun updateNetworkEmptyView(emptyLoading: EmptyLoadingStateView) {
-        if (!Settings.getInstance(requireActivity()).getBoolean(KEY_BROWSE_NETWORK, true)) {
-            emptyLoading.state = EmptyLoadingState.EMPTY
-            emptyLoading.emptyText = getString(R.string.network_disabled)
-            return
-        }
-        if (networkMonitor.connected) {
-            if (networkViewModel.isEmpty()) {
-                if (networkViewModel.loading.value == true) {
-                    emptyLoading.state = EmptyLoadingState.LOADING
-                } else {
-                    if (networkMonitor.lanAllowed) {
-                        emptyLoading.state = EmptyLoadingState.LOADING
-                        emptyLoading.loadingText = getString(R.string.network_shares_discovery)
-                    } else {
-                        emptyLoading.state = EmptyLoadingState.EMPTY
-                        emptyLoading.emptyText = getString(R.string.network_connection_needed)
-                    }
-                    networkEntry.list.visibility = View.GONE
-//                    handler.sendEmptyMessage(MSG_HIDE_LOADING)
-                }
-            } else {
-                emptyLoading.state = EmptyLoadingState.NONE
-                networkEntry.list.visibility = View.VISIBLE
-            }
-        } else {
-            emptyLoading.state = EmptyLoadingState.EMPTY
-            emptyLoading.emptyText = getString(R.string.network_connection_needed)
-            networkEntry.list.visibility = View.GONE
-        }
-    }
-
     override fun onClick(v: View) { }
-
-    private fun showAddServerDialog(mw: MediaWrapper?) {
-        val fm = try {
-            parentFragmentManager
-        } catch (e: IllegalStateException) {
-            return
-        }
-        val dialog = NetworkServerDialog()
-        mw?.let { dialog.setServer(it) }
-        dialog.show(fm, "fragment_add_server")
-    }
 
     inner class MainBrowserContainer(
             override val scannedDirectory: Boolean = false,
@@ -444,11 +345,7 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
                     if (!isEmpty) add(CTX_PLAY)
                     val isFileBrowser = isFile && item.uri.scheme == "file"
                     val favExists = withContext(Dispatchers.IO) { browserFavRepository.browserFavExists(mw.uri) }
-                    if (favExists) {
-                        if (mw.uri.scheme.isSchemeFavoriteEditable() && withContext(Dispatchers.IO) { browserFavRepository.isFavNetwork(mw.uri) })
-                            addAll(CTX_FAV_EDIT, CTX_FAV_REMOVE)
-                        else add(CTX_FAV_REMOVE)
-                    } else add(CTX_FAV_ADD)
+                    if (favExists) add(CTX_FAV_REMOVE) else add(CTX_FAV_ADD)
                     if (isFileBrowser) {
                         if (localViewModel.provider.hasMedias(mw)) add(CTX_ADD_FOLDER_PLAYLIST)
                         if (localViewModel.provider.hasSubfolders(mw)) add(CTX_ADD_FOLDER_AND_SUB_PLAYLIST)
@@ -475,7 +372,6 @@ class MainBrowserFragment : BaseFragment(), View.OnClickListener, CtxActionRecei
             CTX_FAV_REMOVE -> lifecycleScope.launch(Dispatchers.IO) { browserFavRepository.deleteBrowserFav(mw.uri) }
             CTX_ADD_FOLDER_PLAYLIST -> requireActivity().addToPlaylistAsync(mw.uri.toString(), false, mw.title)
             CTX_ADD_FOLDER_AND_SUB_PLAYLIST -> requireActivity().addToPlaylistAsync(mw.uri.toString(), true, mw.title)
-            CTX_FAV_EDIT -> showAddServerDialog(mw)
             else -> {}
         }
     }

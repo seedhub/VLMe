@@ -41,7 +41,6 @@ import org.videolan.vlc.gui.helpers.MedialibraryUtils
 import org.videolan.vlc.providers.BrowserProvider
 import org.videolan.vlc.providers.FileBrowserProvider
 import org.videolan.vlc.providers.FilePickerProvider
-import org.videolan.vlc.providers.NetworkProvider
 import org.videolan.vlc.providers.PickerType
 import org.videolan.vlc.providers.StorageProvider
 import org.videolan.vlc.repository.DirectoryRepository
@@ -59,7 +58,6 @@ open class BrowserModel(
         val type: Long,
         private val showDummyCategory: Boolean,
         pickerType: PickerType = PickerType.SUBTITLE,
-        mocked: ArrayList<MediaLibraryItem>? = null,
         coroutineContextProvider: CoroutineContextProvider = CoroutineContextProvider()
 ) : BaseModel<MediaLibraryItem>(
         context, coroutineContextProvider),
@@ -70,7 +68,6 @@ open class BrowserModel(
 
     override val provider: BrowserProvider = when (type) {
         TYPE_PICKER -> FilePickerProvider(context, dataset, url, pickerType = pickerType)
-        TYPE_NETWORK -> NetworkProvider(context, dataset, url, mocked)
         TYPE_STORAGE -> StorageProvider(context, dataset, url)
         else -> FileBrowserProvider(context, dataset, url, showDummyCategory = showDummyCategory, sort = sort, desc = desc)
     }
@@ -189,7 +186,5 @@ open class BrowserModel(
     }
 }
 
-fun Fragment.getBrowserModel(category: Long, url: String?, showDummyCategory: Boolean = false, mocked: ArrayList<MediaLibraryItem>? = null) = if (category == TYPE_NETWORK)
-    ViewModelProvider(this, NetworkModel.Factory(requireContext(), url, mocked))[NetworkModel::class.java]
-else
+fun Fragment.getBrowserModel(category: Long, url: String?, showDummyCategory: Boolean = false) =
     ViewModelProvider(this, BrowserModel.Factory(requireContext(), url, category, showDummyCategory = showDummyCategory))[BrowserModel::class.java]

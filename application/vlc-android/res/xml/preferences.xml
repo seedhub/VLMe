@@ -41,15 +41,6 @@
                 android:title="@string/screen_orientation"/>
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="@string/network">
-        <ListPreference
-                android:defaultValue="0"
-                android:entries="@array/metered_connection_list"
-                android:entryValues="@array/metered_connection_values"
-                android:key="metered_connection"
-                android:summary="%s"
-                android:title="@string/metered_connection"/>
-    </PreferenceCategory>
     <PreferenceCategory android:title="@string/permissions"
             android:key="permissions_title">
         <PreferenceScreen
@@ -109,10 +100,6 @@
                 android:title="@string/equalizer"
                 android:icon="@drawable/ic_pref_equalizer"
                 android:key="equalizer"/>
-        <Preference
-                android:title="@string/casting_category"
-                android:icon="@drawable/ic_renderer"
-                android:key="casting_category"/>
 
         <PreferenceScreen
                 android:key="parental_control"
@@ -120,11 +107,6 @@
                 android:fragment="org.videolan.television.ui.preferences.PreferencesParentalControl"
                 android:icon="@drawable/ic_pref_parental_control"
                 android:title="@string/parental_control"/>
-        <Preference
-                android:title="@string/remote_access"
-                android:key="remote_access_category"
-                android:icon="@drawable/ic_pref_remote_access"
-                android:fragment="org.videolan.television.ui.preferences.PreferencesRemoteAccess"/>
         <Preference
             android:title="@string/android_auto"
             android:key="android_auto_category"

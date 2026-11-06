@@ -61,15 +61,12 @@ import org.videolan.vlc.gui.browser.FileBrowserFragment
 import org.videolan.vlc.gui.browser.KEY_JUMP_TO
 import org.videolan.vlc.gui.browser.KEY_MEDIA
 import org.videolan.vlc.gui.browser.MLStorageBrowserFragment
-import org.videolan.vlc.gui.browser.NetworkBrowserFragment
 import org.videolan.vlc.gui.helpers.UiTools
-import org.videolan.vlc.gui.network.MRLPanelFragment
 import org.videolan.vlc.gui.video.VideoGridFragment
 import org.videolan.vlc.reloadLibrary
 import org.videolan.vlc.util.DialogDelegate
 import org.videolan.vlc.util.IDialogManager
 import org.videolan.vlc.util.Permissions
-import org.videolan.vlc.util.isSchemeNetwork
 
 class SecondaryActivity : ContentActivity(), IDialogManager {
 
@@ -190,8 +187,6 @@ class SecondaryActivity : ContentActivity(), IDialogManager {
         return super.onOptionsItemSelected(item)
     }
 
-    override fun hideRenderers() = intent.getStringExtra(KEY_FRAGMENT) == STORAGE_BROWSER_ONBOARDING
-
     private fun fetchSecondaryFragment(id: String) {
         when (id) {
             ALBUMS_SONGS -> {
@@ -205,7 +200,6 @@ class SecondaryActivity : ContentActivity(), IDialogManager {
                 }
             }
             ABOUT -> fragment = AboutFragment()
-            STREAMS -> fragment = MRLPanelFragment()
             HISTORY -> fragment = HistoryFragment()
             VIDEO_GROUP_LIST -> {
                 fragment = VideoGridFragment().apply {
@@ -221,8 +215,7 @@ class SecondaryActivity : ContentActivity(), IDialogManager {
             }
             FILE_BROWSER -> {
                 (intent.parcelable(KEY_MEDIA) as? MediaWrapper)?.let { media ->
-                    fragment = if (media.uri.scheme.isSchemeNetwork()) NetworkBrowserFragment()
-                    else FileBrowserFragment()
+                    fragment = FileBrowserFragment()
                     fragment?.apply { arguments = bundleOf(KEY_MEDIA to media, KEY_JUMP_TO to intent.parcelable(KEY_JUMP_TO)) }
                 }
             }
@@ -239,7 +232,6 @@ class SecondaryActivity : ContentActivity(), IDialogManager {
 
         const val ALBUMS_SONGS = "albumsSongs"
         const val ABOUT = "about"
-        const val STREAMS = "streams"
         const val HISTORY = "history"
         const val VIDEO_GROUP_LIST = "videoGroupList"
         const val STORAGE_BROWSER = "storage_browser"
