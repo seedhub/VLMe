@@ -133,6 +133,7 @@ import org.videolan.resources.TAG_ITEM
 import org.videolan.resources.TV_CONFIRMATION_ACTIVITY
 import org.videolan.resources.util.launchForeground
 import org.videolan.tools.BitmapCache
+import org.videolan.tools.KEY_APP_ACCENT_COLOR
 import org.videolan.tools.KEY_APP_THEME
 import org.videolan.tools.KEY_INCLUDE_MISSING
 import org.videolan.tools.KEY_INCOGNITO
@@ -1102,6 +1103,7 @@ fun BaseActivity.applyTheme() {
     if (Settings.showTvUi) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         setTheme(R.style.Theme_VLC_Black)
+        applyAccentOverlay()
         return
     }
 
@@ -1119,6 +1121,30 @@ fun BaseActivity.applyTheme() {
         }
     }
     AppCompatDelegate.setDefaultNightMode(Integer.valueOf(string!!))
+    applyAccentOverlay()
+}
+
+/**
+ * VLMe accent color support. The app_accent_color preference stores the picked
+ * color as an int. Only the preset palette maps to a theme overlay; any other
+ * color (e.g. a custom pick from the color dialog) falls back to the default
+ * VLC orange, which is what the base theme already uses, so no overlay is
+ * applied in that case.
+ */
+fun accentOverlayRes(context: Context, color: Int): Int = when (color) {
+    ContextCompat.getColor(context, R.color.accent_blue) -> R.style.ThemeOverlay_VLMe_Accent_Blue
+    ContextCompat.getColor(context, R.color.accent_green) -> R.style.ThemeOverlay_VLMe_Accent_Green
+    ContextCompat.getColor(context, R.color.accent_red) -> R.style.ThemeOverlay_VLMe_Accent_Red
+    ContextCompat.getColor(context, R.color.accent_purple) -> R.style.ThemeOverlay_VLMe_Accent_Purple
+    ContextCompat.getColor(context, R.color.accent_teal) -> R.style.ThemeOverlay_VLMe_Accent_Teal
+    ContextCompat.getColor(context, R.color.accent_pink) -> R.style.ThemeOverlay_VLMe_Accent_Pink
+    else -> 0
+}
+
+fun Activity.applyAccentOverlay() {
+    val color = Settings.getInstance(this).getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(this, R.color.orange800))
+    val overlay = accentOverlayRes(this, color)
+    if (overlay != 0) theme.applyStyle(overlay, true)
 }
 
 fun getTvIconRes(mediaLibraryItem: MediaLibraryItem) = when (mediaLibraryItem.itemType) {

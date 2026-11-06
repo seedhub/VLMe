@@ -12,7 +12,7 @@
 
     </style>
 
-    <style name="Theme.VLC.Apearance" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="Theme.VLC.Apearance" parent="Theme.Material3.Light.NoActionBar">
         <item name="toolbar_popup_style">@style/ThemeOverlay.MaterialComponents</item>
         <item name="actionMenuTextColor">@color/white</item>
 
@@ -209,7 +209,7 @@
         <item name="bottomSheetDialogTheme">@style/AppBottomSheetDialogTheme</item>
     </style>
 
-    <style name="Theme.VLC.Apearance.Black" parent="Theme.MaterialComponents.NoActionBar">
+    <style name="Theme.VLC.Apearance.Black" parent="Theme.Material3.Dark.NoActionBar">
         <item name="toolbar_popup_style">@style/ThemeOverlay.MaterialComponents.Dark</item>
 
         <item name="android:gridViewStyle">@style/Theme.VLC.List</item>
@@ -300,7 +300,7 @@
         <item name="audio_player_gradient_bottom">@drawable/gradient_audio_player_bottom_dark</item>
         <item name="audio_player_gradient_top">@drawable/gradient_audio_player_top_dark</item>
         <item name="tips_item_background">@color/grey900</item>
-        <item name="about_text_primary">@color/orange500</item>
+        <item name="about_text_primary">?attr/colorPrimary</item>
         <item name="widget_preview_rounded_bg">@drawable/rounded_top_corners_left_background_dark</item>
         <item name="sliderStyle">@style/VLC.Slider.Dark</item>
     </style>
@@ -312,10 +312,10 @@
         <item name="subtitleTextStyle">@style/ActionModeSubtitleTextStyle</item>
     </style>
     <style name="ActionModeTitleTextStyle" parent="@style/TextAppearance.AppCompat.Widget.ActionMode.Title">
-        <item name="android:textColor">@color/orange800</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
     </style>
     <style name="ActionModeSubtitleTextStyle" parent="@style/TextAppearance.AppCompat.Widget.ActionMode.Subtitle">
-        <item name="android:textColor">@color/orange800</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
     </style>
 
     <style name="ActionMode.Dark" parent="Widget.AppCompat.ActionBar.Solid">
@@ -324,10 +324,10 @@
         <item name="subtitleTextStyle">@style/ActionModeSubtitleTextStyleDark</item>
     </style>
     <style name="ActionModeTitleTextStyleDark" parent="@style/TextAppearance.AppCompat.Widget.ActionMode.Title">
-        <item name="android:textColor">@color/orange500</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
     </style>
     <style name="ActionModeSubtitleTextStyleDark" parent="@style/TextAppearance.AppCompat.Widget.ActionMode.Subtitle">
-        <item name="android:textColor">@color/orange500</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
     </style>
 
     <style name="ThemeOverlay.ActionMode" parent="ThemeOverlay.AppCompat.ActionBar">
@@ -493,7 +493,7 @@
 
     <style name="Theme.VLC.Player" parent="Theme.VLC.Player.7" />
 
-    <style name="Theme.VLC.Player.7" parent="Theme.MaterialComponents.NoActionBar">
+    <style name="Theme.VLC.Player.7" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@color/transparent</item>
@@ -854,6 +854,87 @@
         <item name="strokeWidth">1dp</item>
         <item name="cardCornerRadius">4dp</item>
         <item name="cardElevation">0dp</item>
+    </style>
+
+    <!-- VLMe accent color overlays. Applied on top of the base theme via
+         UiTools.applyAccentOverlay() according to the app_accent_color
+         preference. VLC orange needs no overlay: it is the base theme. -->
+    <style name="ThemeOverlay.VLMe.Accent.Blue">
+        <item name="colorPrimary">@color/accent_blue</item>
+        <item name="colorPrimaryDark">@color/accent_blue_dark</item>
+        <item name="colorSecondary">@color/accent_blue</item>
+        <item name="colorAccent">@color/accent_blue</item>
+        <item name="colorControlHighlight">@color/accent_blue</item>
+        <item name="android:colorControlHighlight">@color/accent_blue</item>
+        <item name="audio_browser_separator">@color/accent_blue</item>
+        <item name="donate_card">@color/accent_blue_light</item>
+        <item name="bottom_navigation_focus">@color/accent_blue_focus_10</item>
+        <item name="primary_focus">@color/accent_blue_focus_20</item>
+    </style>
+
+    <style name="ThemeOverlay.VLMe.Accent.Green">
+        <item name="colorPrimary">@color/accent_green</item>
+        <item name="colorPrimaryDark">@color/accent_green_dark</item>
+        <item name="colorSecondary">@color/accent_green</item>
+        <item name="colorAccent">@color/accent_green</item>
+        <item name="colorControlHighlight">@color/accent_green</item>
+        <item name="android:colorControlHighlight">@color/accent_green</item>
+        <item name="audio_browser_separator">@color/accent_green</item>
+        <item name="donate_card">@color/accent_green_light</item>
+        <item name="bottom_navigation_focus">@color/accent_green_focus_10</item>
+        <item name="primary_focus">@color/accent_green_focus_20</item>
+    </style>
+
+    <style name="ThemeOverlay.VLMe.Accent.Red">
+        <item name="colorPrimary">@color/accent_red</item>
+        <item name="colorPrimaryDark">@color/accent_red_dark</item>
+        <item name="colorSecondary">@color/accent_red</item>
+        <item name="colorAccent">@color/accent_red</item>
+        <item name="colorControlHighlight">@color/accent_red</item>
+        <item name="android:colorControlHighlight">@color/accent_red</item>
+        <item name="audio_browser_separator">@color/accent_red</item>
+        <item name="donate_card">@color/accent_red_light</item>
+        <item name="bottom_navigation_focus">@color/accent_red_focus_10</item>
+        <item name="primary_focus">@color/accent_red_focus_20</item>
+    </style>
+
+    <style name="ThemeOverlay.VLMe.Accent.Purple">
+        <item name="colorPrimary">@color/accent_purple</item>
+        <item name="colorPrimaryDark">@color/accent_purple_dark</item>
+        <item name="colorSecondary">@color/accent_purple</item>
+        <item name="colorAccent">@color/accent_purple</item>
+        <item name="colorControlHighlight">@color/accent_purple</item>
+        <item name="android:colorControlHighlight">@color/accent_purple</item>
+        <item name="audio_browser_separator">@color/accent_purple</item>
+        <item name="donate_card">@color/accent_purple_light</item>
+        <item name="bottom_navigation_focus">@color/accent_purple_focus_10</item>
+        <item name="primary_focus">@color/accent_purple_focus_20</item>
+    </style>
+
+    <style name="ThemeOverlay.VLMe.Accent.Teal">
+        <item name="colorPrimary">@color/accent_teal</item>
+        <item name="colorPrimaryDark">@color/accent_teal_dark</item>
+        <item name="colorSecondary">@color/accent_teal</item>
+        <item name="colorAccent">@color/accent_teal</item>
+        <item name="colorControlHighlight">@color/accent_teal</item>
+        <item name="android:colorControlHighlight">@color/accent_teal</item>
+        <item name="audio_browser_separator">@color/accent_teal</item>
+        <item name="donate_card">@color/accent_teal_light</item>
+        <item name="bottom_navigation_focus">@color/accent_teal_focus_10</item>
+        <item name="primary_focus">@color/accent_teal_focus_20</item>
+    </style>
+
+    <style name="ThemeOverlay.VLMe.Accent.Pink">
+        <item name="colorPrimary">@color/accent_pink</item>
+        <item name="colorPrimaryDark">@color/accent_pink_dark</item>
+        <item name="colorSecondary">@color/accent_pink</item>
+        <item name="colorAccent">@color/accent_pink</item>
+        <item name="colorControlHighlight">@color/accent_pink</item>
+        <item name="android:colorControlHighlight">@color/accent_pink</item>
+        <item name="audio_browser_separator">@color/accent_pink</item>
+        <item name="donate_card">@color/accent_pink_light</item>
+        <item name="bottom_navigation_focus">@color/accent_pink_focus_10</item>
+        <item name="primary_focus">@color/accent_pink_focus_20</item>
     </style>
 
 </resources>

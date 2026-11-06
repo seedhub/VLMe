@@ -116,6 +116,38 @@
     <color name="orange_800_transparent_20">#33ff610a</color>
     <color name="orange_500_transparent_20">#33FF8800</color>
 
+    <!-- VLMe accent color presets (see ThemeOverlay.VLMe.Accent.*) -->
+    <color name="accent_blue">#1565c0</color>
+    <color name="accent_blue_dark">#0d47a1</color>
+    <color name="accent_blue_light">#1e88e5</color>
+    <color name="accent_blue_focus_10">#1a1565c0</color>
+    <color name="accent_blue_focus_20">#331565c0</color>
+    <color name="accent_green">#2e7d32</color>
+    <color name="accent_green_dark">#1b5e20</color>
+    <color name="accent_green_light">#43a047</color>
+    <color name="accent_green_focus_10">#1a2e7d32</color>
+    <color name="accent_green_focus_20">#332e7d32</color>
+    <color name="accent_red">#c62828</color>
+    <color name="accent_red_dark">#b71c1c</color>
+    <color name="accent_red_light">#e53935</color>
+    <color name="accent_red_focus_10">#1ac62828</color>
+    <color name="accent_red_focus_20">#33c62828</color>
+    <color name="accent_purple">#6a1b9a</color>
+    <color name="accent_purple_dark">#4a148c</color>
+    <color name="accent_purple_light">#8e24aa</color>
+    <color name="accent_purple_focus_10">#1a6a1b9a</color>
+    <color name="accent_purple_focus_20">#336a1b9a</color>
+    <color name="accent_teal">#00695c</color>
+    <color name="accent_teal_dark">#004d40</color>
+    <color name="accent_teal_light">#00897b</color>
+    <color name="accent_teal_focus_10">#1a00695c</color>
+    <color name="accent_teal_focus_20">#3300695c</color>
+    <color name="accent_pink">#c2185b</color>
+    <color name="accent_pink_dark">#880e4f</color>
+    <color name="accent_pink_light">#d81b60</color>
+    <color name="accent_pink_focus_10">#1ac2185b</color>
+    <color name="accent_pink_focus_20">#33c2185b</color>
+
     <color name="tv_bg">#34434e</color>
     <color name="tv_card_content">#34434e</color>
     <color name="tv_card_content_dark">#1a2c38</color>

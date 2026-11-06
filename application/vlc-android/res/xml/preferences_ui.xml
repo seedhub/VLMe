@@ -13,6 +13,11 @@
             android:entries="@array/daynight_mode_entries"
             android:entryValues="@array/daynight_mode_values"/>
 
+    <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
+            android:defaultValue="@color/orange800"
+            android:key="app_accent_color"
+            android:title="@string/accent_color_title" />
+
     <CheckBoxPreference
             app:singleLineTitle="false"
             android:key="tv_ui"
