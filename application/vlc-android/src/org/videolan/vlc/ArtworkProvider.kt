@@ -211,7 +211,7 @@ class ArtworkProvider : ContentProvider() {
      * for the currently playing song. It may be called by half-a-dozen consumers concurrently.
      *
      * For the currently playing song, a URI to this function is always specified which either returns
-     * actual cover art or a high resolution orange cone. When a track does *not* have cover art
+     * actual cover art or a high resolution green cone. When a track does *not* have cover art
      * available, the ic_auto_nothumb drawable is passed in the MediaSessionBrowser for the *queue*.
      * By sharing a common URI between the queue and currently playing song, we vastly cut down on
      * the number of calls to the content provider, as the cache sees a higher hit ratio. Users also
@@ -219,7 +219,7 @@ class ArtworkProvider : ContentProvider() {
      *
      * If the artwork is already square on disk, we simply return the file (png, jpg)
      * If the artwork is not square, pad it square based on the max size of the largest dimension (webp)
-     * If the artwork is null, or mediaId is 0, return a 512x512 orange cone (webp)
+     * If the artwork is null, or mediaId is 0, return a 512x512 green cone (webp)
      *
      * @param ctx the context used to retrieve drawables
      * @param mediaId the media ID
