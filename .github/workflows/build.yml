@@ -19,13 +19,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # GitHub-hosted ubuntu runners already ship a full Android SDK
+      # (ANDROID_HOME=/usr/local/lib/android/sdk with cmdline-tools).
+      # The android-actions/setup-android@v3 step failed on the first
+      # run, so use the preinstalled SDK's sdkmanager directly instead.
       - name: Install SDK packages
         run: |
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;21.4.7075529" "cmake;3.22.1" "platform-tools"
-          yes | sdkmanager --licenses || true
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;21.4.7075529" "cmake;3.22.1" "platform-tools"
 
       # Mirrors upstream continuous-app-build: clones libvlcjni + VLC sources
       # and generates the gradle wrapper (repo ships no gradlew).
