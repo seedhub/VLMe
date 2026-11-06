@@ -1130,14 +1130,23 @@ fun BaseActivity.applyTheme() {
  * color (e.g. a custom pick from the color dialog) falls back to the default
  * VLC orange, which is what the base theme already uses, so no overlay is
  * applied in that case.
+ *
+ * Two int values map to each overlay: our preset color (e.g. accent_blue
+ * #1565c0), which is what the picker stores now that it is constrained to
+ * @array/accent_color_presets, and the library's default MATERIAL_COLORS 500
+ * value (e.g. blue #2196F3), which is what the run #11 build stored — its
+ * picker offered the library's default palette, whose values never matched
+ * our presets, so no overlay was ever applied. Mapping both means a color
+ * picked with the old build starts working after the next restart, without
+ * having to re-pick.
  */
 fun accentOverlayRes(context: Context, color: Int): Int = when (color) {
-    ContextCompat.getColor(context, R.color.accent_blue) -> R.style.ThemeOverlay_VLMe_Accent_Blue
-    ContextCompat.getColor(context, R.color.accent_green) -> R.style.ThemeOverlay_VLMe_Accent_Green
-    ContextCompat.getColor(context, R.color.accent_red) -> R.style.ThemeOverlay_VLMe_Accent_Red
-    ContextCompat.getColor(context, R.color.accent_purple) -> R.style.ThemeOverlay_VLMe_Accent_Purple
-    ContextCompat.getColor(context, R.color.accent_teal) -> R.style.ThemeOverlay_VLMe_Accent_Teal
-    ContextCompat.getColor(context, R.color.accent_pink) -> R.style.ThemeOverlay_VLMe_Accent_Pink
+    ContextCompat.getColor(context, R.color.accent_blue), 0xFF2196F3.toInt() -> R.style.ThemeOverlay_VLMe_Accent_Blue
+    ContextCompat.getColor(context, R.color.accent_green), 0xFF4CAF50.toInt() -> R.style.ThemeOverlay_VLMe_Accent_Green
+    ContextCompat.getColor(context, R.color.accent_red), 0xFFF44336.toInt() -> R.style.ThemeOverlay_VLMe_Accent_Red
+    ContextCompat.getColor(context, R.color.accent_purple), 0xFF9C27B0.toInt() -> R.style.ThemeOverlay_VLMe_Accent_Purple
+    ContextCompat.getColor(context, R.color.accent_teal), 0xFF009688.toInt() -> R.style.ThemeOverlay_VLMe_Accent_Teal
+    ContextCompat.getColor(context, R.color.accent_pink), 0xFFE91E63.toInt() -> R.style.ThemeOverlay_VLMe_Accent_Pink
     else -> 0
 }
 

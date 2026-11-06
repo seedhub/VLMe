@@ -16,7 +16,9 @@
     <com.jaredrummler.android.colorpicker.ColorPreferenceCompat
             android:defaultValue="@color/orange800"
             android:key="app_accent_color"
-            android:title="@string/accent_color_title" />
+            android:title="@string/accent_color_title"
+            app:cpv_colorPresets="@array/accent_color_presets"
+            app:cpv_showColorShades="false" />
 
     <CheckBoxPreference
             app:singleLineTitle="false"
