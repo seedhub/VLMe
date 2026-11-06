@@ -31,6 +31,13 @@ jobs:
 
       # Mirrors upstream continuous-app-build: clones libvlcjni + VLC sources
       # and generates the gradle wrapper (repo ships no gradlew).
+      # compile.sh applies custom patches to the cloned VLC sources with
+      # git, which fails on a fresh runner with no committer identity.
+      - name: Set git identity
+        run: |
+          git config --global user.name "VLMe CI"
+          git config --global user.email "vlme-ci@users.noreply.github.com"
+
       - name: Init build environment
         run: |
           export PATH="$ANDROID_HOME/cmake/3.22.1/bin:$PATH"
