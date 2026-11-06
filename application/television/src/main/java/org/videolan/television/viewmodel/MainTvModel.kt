@@ -76,7 +76,6 @@ import org.videolan.television.ui.MainTvActivity
 import org.videolan.television.ui.NowPlayingDelegate
 import org.videolan.television.ui.audioplayer.AudioPlayerActivity
 import org.videolan.television.ui.browser.VerticalGridActivity
-import org.videolan.tools.NetworkMonitor
 import org.videolan.tools.PLAYBACK_HISTORY
 import org.videolan.tools.Settings
 import org.videolan.tools.getContextWithLocale
@@ -101,7 +100,6 @@ class MainTvModel(app: Application) : AndroidViewModel(app), Medialibrary.OnMedi
 
     val context = getApplication<Application>().getContextWithLocale(AppContextProvider.locale)
     private val medialibrary = Medialibrary.getInstance()
-    private val networkMonitor = NetworkMonitor.getInstance(context)
     val settings = Settings.getInstance(context)
     private val showInternalStorage = AndroidDevices.showInternalStorage()
     private val browserFavRepository = BrowserFavRepository.getInstance(context)
@@ -147,7 +145,6 @@ class MainTvModel(app: Application) : AndroidViewModel(app), Medialibrary.OnMedi
         medialibrary.addOnMedialibraryReadyListener(this)
         medialibrary.addOnDeviceChangeListener(this)
         favorites.observeForever(favObserver)
-        networkMonitor.connectionFlow.onEach { updateActor.trySend(Unit) }.launchIn(viewModelScope)
         ExternalMonitor.storageEvents.onEach { updateActor.trySend(Unit) }.launchIn(viewModelScope)
         PlaylistManager.showAudioPlayer.observeForever(playerObserver)
         mediaMetadataRepository.getAllLive().observeForever(videoObserver)

@@ -59,7 +59,6 @@ import androidx.leanback.widget.OnItemViewClickedListener
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
@@ -69,7 +68,6 @@ import org.videolan.moviepedia.viewmodel.MediaScrapingModel
 import org.videolan.resources.util.parcelable
 import org.videolan.television.R
 import org.videolan.television.util.manageHttpException
-import org.videolan.tools.NetworkMonitor
 
 private const val TAG = "SearchFragment"
 private const val REQUEST_SPEECH = 1
@@ -123,10 +121,6 @@ class MediaScrapingTvFragment : SearchSupportFragment(), SearchSupportFragment.S
         viewModel.exceptionLiveData.observe(this) { e ->
             e?.let {
                 requireActivity().manageHttpException(it)
-                lifecycleScope.launchWhenStarted {
-                    NetworkMonitor.getInstance(requireContext()).connectionFlow.first { it.connected }
-                    refresh()
-                }
             }
         }
         setSearchQuery(media.title, false)

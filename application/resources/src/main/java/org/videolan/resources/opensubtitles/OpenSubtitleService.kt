@@ -11,9 +11,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
-import org.videolan.resources.AppContextProvider
 import org.videolan.resources.BuildConfig
-import org.videolan.resources.util.ConnectivityInterceptor
 import org.videolan.tools.forbiddenChars
 import org.videolan.tools.substrlng
 import retrofit2.Retrofit
@@ -48,7 +46,6 @@ private fun getOkHttpClient(): OkHttpClient {
 
         .addInterceptor(DomainInterceptor())
         .addInterceptor(UserAgentInterceptor(USER_AGENT))
-        .addInterceptor(ConnectivityInterceptor(AppContextProvider.appContext))
 
         .readTimeout(10, TimeUnit.SECONDS)
         .connectTimeout(5, TimeUnit.SECONDS)

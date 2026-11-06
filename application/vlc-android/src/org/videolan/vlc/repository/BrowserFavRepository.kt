@@ -31,19 +31,15 @@ import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.resources.AppContextProvider
 import org.videolan.resources.TYPE_LOCAL_FAV
 import org.videolan.resources.TYPE_NETWORK_FAV
-import org.videolan.tools.NetworkMonitor
 import org.videolan.tools.SingletonHolder
 import org.videolan.vlc.database.BrowserFavDao
 import org.videolan.vlc.database.MediaDatabase
 import org.videolan.vlc.mediadb.models.BrowserFav
 import org.videolan.vlc.util.Permissions
 import org.videolan.vlc.util.convertFavorites
-import java.util.*
 
 
 class BrowserFavRepository(private val browserFavDao: BrowserFavDao) {
-
-    private val networkMonitor = NetworkMonitor.getInstance(AppContextProvider.appContext)
 
     val networkFavs by lazy { browserFavDao.getAllNetworkFavs() }
 
@@ -66,10 +62,6 @@ class BrowserFavRepository(private val browserFavDao: BrowserFavDao) {
     val networkFavorites by lazy {
         MediatorLiveData<List<MediaWrapper>>().apply {
             addSource(networkFavs.asLiveData()) { value = convertFavorites(it).filterNetworkFavs() }
-            addSource(networkMonitor.connectionFlow.asLiveData()) {
-                val favList = convertFavorites(networkFavs.asLiveData().value)
-                if (favList.isNotEmpty()) value = if (it.connected) favList.filterNetworkFavs() else emptyList()
-            }
         }
     }
 
@@ -80,17 +72,9 @@ class BrowserFavRepository(private val browserFavDao: BrowserFavDao) {
 
     suspend fun deleteBrowserFav(uri: Uri) = withContext(Dispatchers.IO) { browserFavDao.delete(uri) }
 
-    private fun List<MediaWrapper>.filterNetworkFavs() : List<MediaWrapper> {
-        return when {
-            isEmpty() -> this
-            !networkMonitor.connected -> emptyList()
-            !NetworkMonitor.getInstance(AppContextProvider.appContext).lanAllowed -> {
-                val schemes = Arrays.asList("ftp", "sftp", "ftps", "ftpes", "http", "https")
-                mutableListOf<MediaWrapper>().apply { this@filterNetworkFavs.filterTo(this) { schemes.contains(it.uri.scheme) } }
-            }
-            else -> this
-        }
-    }
+    // No connectivity gating: network features are removed, stored network
+    // favorites stay viewable/removable as-is.
+    private fun List<MediaWrapper>.filterNetworkFavs(): List<MediaWrapper> = this
 
     companion object : SingletonHolder<BrowserFavRepository, Context>({ BrowserFavRepository(MediaDatabase.getInstance(it).browserFavDao()) })
 }

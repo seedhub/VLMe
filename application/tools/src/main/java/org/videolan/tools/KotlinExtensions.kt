@@ -22,7 +22,6 @@
  */
 package org.videolan.tools
 
-import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.ActivityManager.RunningAppProcessInfo
 import android.content.ClipData
@@ -33,7 +32,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.content.res.Resources
-import android.net.ConnectivityManager
 import android.net.Uri
 import android.util.Patterns
 import android.util.TypedValue
@@ -125,11 +123,6 @@ fun String?.isValidUrl(): Boolean {
         returns(true) implies (this@isValidUrl != null)
     }
     return !isNullOrEmpty() && Patterns.WEB_URL.matcher(this).matches()
-}
-
-@SuppressLint("MissingPermission")
-fun Context.isConnected(): Boolean {
-    return getSystemService<ConnectivityManager>()?.activeNetworkInfo?.isConnected == true
 }
 
 val Context.localBroadcastManager: LocalBroadcastManager
