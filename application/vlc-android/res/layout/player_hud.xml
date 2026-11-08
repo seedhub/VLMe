@@ -316,15 +316,16 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
             <ImageView
-                    android:id="@+id/player_speed"
+                    android:id="@+id/player_resize"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/small_margins_sides"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
-                    android:contentDescription="@string/playback_speed"
+                    android:contentDescription="@string/aspect_ratio"
                     android:focusable="true"
-                    android:onClick="@{(v) -> player.showPlaybackSpeedDialog()}"
+                    android:onClick="@{(v) -> player.resizeVideo()}"
+                    android:onLongClick="@{(v) -> player.displayResize()}"
                     android:scaleType="center"
                     tools:visibility="visible"
                     vlc:layout_constraintBottom_toBottomOf="@+id/player_overlay_play"
@@ -332,7 +333,7 @@
                     vlc:layout_constraintHorizontal_chainStyle="spread_inside"
                     vlc:layout_constraintStart_toStartOf="parent"
                     vlc:layout_constraintTop_toTopOf="@+id/player_overlay_play"
-                    vlc:srcCompat="@drawable/ic_speed" />
+                    vlc:srcCompat="@drawable/ic_player_ratio" />
 
             <ImageView
                     android:id="@+id/player_overlay_tracks"
@@ -348,7 +349,7 @@
                     tools:visibility="visible"
                     vlc:layout_constraintBottom_toBottomOf="@+id/player_overlay_play"
                     vlc:layout_constraintEnd_toStartOf="@+id/orientation_toggle"
-                    vlc:layout_constraintStart_toEndOf="@+id/player_speed"
+                    vlc:layout_constraintStart_toEndOf="@+id/player_resize"
                     vlc:layout_constraintTop_toTopOf="@+id/player_overlay_play"
                     vlc:srcCompat="@drawable/ic_player_audiotrack" />
 
@@ -526,29 +527,28 @@
                     android:scaleType="center"
                     tools:visibility="visible"
                     vlc:layout_constraintBottom_toBottomOf="@id/player_overlay_play"
-                    vlc:layout_constraintEnd_toStartOf="@id/player_resize"
+                    vlc:layout_constraintEnd_toStartOf="@id/player_speed"
                     vlc:layout_constraintStart_toEndOf="@id/player_space_right"
                     vlc:layout_constraintTop_toTopOf="@id/player_overlay_play"
                     vlc:srcCompat="@drawable/ic_popup_dim" />
 
             <ImageView
-                    android:id="@+id/player_resize"
+                    android:id="@+id/player_speed"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="@dimen/small_margins_sides"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
-                    android:contentDescription="@string/aspect_ratio"
+                    android:contentDescription="@string/playback_speed"
                     android:focusable="true"
-                    android:onClick="@{(v) -> player.resizeVideo()}"
-                    android:onLongClick="@{(v) -> player.displayResize()}"
+                    android:onClick="@{(v) -> player.showPlaybackSpeedDialog()}"
                     android:scaleType="center"
                     tools:visibility="visible"
                     vlc:layout_constraintBottom_toBottomOf="@+id/player_overlay_play"
                     vlc:layout_constraintEnd_toStartOf="@+id/player_overlay_adv_function"
                     vlc:layout_constraintStart_toEndOf="@+id/player_popup"
                     vlc:layout_constraintTop_toTopOf="@+id/player_overlay_play"
-                    vlc:srcCompat="@drawable/ic_player_ratio" />
+                    vlc:srcCompat="@drawable/ic_speed" />
 
             <ImageView
                     android:id="@+id/player_overlay_adv_function"
@@ -564,7 +564,7 @@
                     tools:visibility="visible"
                     vlc:layout_constraintBottom_toBottomOf="@+id/player_overlay_play"
                     vlc:layout_constraintEnd_toEndOf="parent"
-                    vlc:layout_constraintStart_toEndOf="@+id/player_resize"
+                    vlc:layout_constraintStart_toEndOf="@+id/player_speed"
                     vlc:layout_constraintTop_toTopOf="@+id/player_overlay_play"
                     vlc:srcCompat="@drawable/ic_player_more" />
 
