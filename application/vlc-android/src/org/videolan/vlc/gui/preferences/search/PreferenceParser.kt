@@ -307,7 +307,7 @@ object PreferenceParser {
         Medialibrary.SORT_DEFAULT -> "Default"
         Medialibrary.SORT_ALPHA -> "Alphabetical"
         Medialibrary.SORT_DURATION -> "Duration"
-        Medialibrary.SORT_INSERTIONDATE -> "Insertion date"
+        Medialibrary.SORT_INSERTIONDATE -> "Date added"
         Medialibrary.SORT_LASTMODIFICATIONDATE -> "Last modification date"
         Medialibrary.SORT_RELEASEDATE -> "Release date"
         Medialibrary.SORT_FILESIZE -> "File size"

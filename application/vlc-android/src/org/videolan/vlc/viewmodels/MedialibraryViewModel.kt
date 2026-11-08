@@ -75,6 +75,7 @@ fun MedialibraryViewModel.prepareOptionsMenu(menu: Menu) {
     menu.findItem(R.id.ml_menu_sortby_length).isVisible = canSortByDuration()
     menu.findItem(R.id.ml_menu_sortby_date).isVisible = canSortByReleaseDate()
     menu.findItem(R.id.ml_menu_sortby_last_modified).isVisible = canSortByLastModified()
+    menu.findItem(R.id.ml_menu_sortby_insertion_date).isVisible = canSortByInsertionDate()
     menu.findItem(R.id.ml_menu_sortby_media_number).isVisible = canSortByMediaNumber()
     menu.findItem(R.id.ml_menu_sortby_number).isVisible = false
 }
