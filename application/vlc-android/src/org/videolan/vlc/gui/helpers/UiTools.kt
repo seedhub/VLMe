@@ -828,7 +828,8 @@ object UiTools {
         menu.appendSortOrder(sortable.requireActivity(), R.id.ml_menu_sortby_album_name, R.string.sortby_album_name, sort == Medialibrary.SORT_ALBUM, desc)
         menu.appendSortOrder(sortable.requireActivity(), R.id.ml_menu_sortby_length, R.string.sortby_length, sort == Medialibrary.SORT_DURATION, desc)
         menu.appendSortOrder(sortable.requireActivity(), R.id.ml_menu_sortby_date, R.string.sortby_date_release, sort == Medialibrary.SORT_RELEASEDATE, desc)
-        menu.appendSortOrder(sortable.requireActivity(),R.id.ml_menu_sortby_last_modified, R.string.sortby_date_last_modified, sort == Medialibrary.SORT_RELEASEDATE, desc)
+        menu.appendSortOrder(sortable.requireActivity(),R.id.ml_menu_sortby_last_modified, R.string.sortby_date_last_modified, sort == Medialibrary.SORT_LASTMODIFICATIONDATE, desc)
+        menu.appendSortOrder(sortable.requireActivity(),R.id.ml_menu_sortby_insertion_date, R.string.sortby_date_insertion, sort == Medialibrary.SORT_INSERTIONDATE, desc)
         //        item = menu.findItem(R.id.ml_menu_sortby_number); TODO sort by track number
         //        if (item != null) item.setTitle(sort == Medialibrary.SORT_ && !desc ? R.string.sortby_number_desc : R.string.sortby_number);
 
