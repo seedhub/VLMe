@@ -443,7 +443,7 @@ else
         ./gradlew ${gradle_prop} "application:vlc-android:install${BUILDTYPE}AndroidTest"
 
         echo -e "\n===================================\nRun following for UI tests:"
-        echo "adb shell am instrument -w -m -e clearPackageData true   -e package org.videolan.vlc -e debug false org.videolan.vlc.debug.test/org.videolan.vlc.MultidexTestRunner 1> result_UI_test.txt"
+        echo "adb shell am instrument -w -m -e clearPackageData true   -e package io.github.seedhub.vlme -e debug false io.github.seedhub.vlme.debug.test/org.videolan.vlc.MultidexTestRunner 1> result_UI_test.txt"
     fi
 fi
 
@@ -461,8 +461,8 @@ if [ "$RUN" = 1 ]; then
     fi
     adb wait-for-device
     if [ "$RELEASE" = 1 ]; then
-        adb shell am start -n org.videolan.vlc/org.videolan.vlc.StartActivity $EXTRA
+        adb shell am start -n io.github.seedhub.vlme/org.videolan.vlc.StartActivity $EXTRA
     else
-        adb shell am start -n org.videolan.vlc.debug/org.videolan.vlc.StartActivity $EXTRA
+        adb shell am start -n io.github.seedhub.vlme.debug/org.videolan.vlc.StartActivity $EXTRA
     fi
 fi
