@@ -316,6 +316,25 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
             <ImageView
+                    android:id="@+id/player_speed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/small_margins_sides"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/playback_speed"
+                    android:focusable="true"
+                    android:onClick="@{(v) -> player.showPlaybackSpeedDialog()}"
+                    android:scaleType="center"
+                    tools:visibility="visible"
+                    vlc:layout_constraintBottom_toBottomOf="@+id/player_overlay_play"
+                    vlc:layout_constraintEnd_toStartOf="@+id/player_overlay_tracks"
+                    vlc:layout_constraintHorizontal_chainStyle="spread_inside"
+                    vlc:layout_constraintStart_toStartOf="parent"
+                    vlc:layout_constraintTop_toTopOf="@+id/player_overlay_play"
+                    vlc:srcCompat="@drawable/ic_speed" />
+
+            <ImageView
                     android:id="@+id/player_overlay_tracks"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -329,8 +348,7 @@
                     tools:visibility="visible"
                     vlc:layout_constraintBottom_toBottomOf="@+id/player_overlay_play"
                     vlc:layout_constraintEnd_toStartOf="@+id/orientation_toggle"
-                    vlc:layout_constraintHorizontal_chainStyle="spread_inside"
-                    vlc:layout_constraintStart_toStartOf="parent"
+                    vlc:layout_constraintStart_toEndOf="@+id/player_speed"
                     vlc:layout_constraintTop_toTopOf="@+id/player_overlay_play"
                     vlc:srcCompat="@drawable/ic_player_audiotrack" />
 

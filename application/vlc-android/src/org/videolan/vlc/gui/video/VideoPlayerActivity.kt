@@ -893,6 +893,18 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         startActivity(startMain)
     }
 
+    /**
+     * VLMe: playback-speed HUD button. Opens the same PlaybackSpeedDialog as
+     * the top quick-actions speed chip (R.id.playback_speed_quick_action).
+     * Unlike the chip, the HUD button is always visible with the overlay.
+     */
+    fun showPlaybackSpeedDialog() {
+        val newFragment = PlaybackSpeedDialog.newInstance()
+        newFragment.onDismissListener = DialogInterface.OnDismissListener { overlayDelegate.dimStatusBar(true) }
+        newFragment.show(supportFragmentManager, "playback_speed")
+        overlayDelegate.hideOverlay(false)
+    }
+
     override fun onVisibleBehindCanceled() {
         super.onVisibleBehindCanceled()
         stopPlayback()
