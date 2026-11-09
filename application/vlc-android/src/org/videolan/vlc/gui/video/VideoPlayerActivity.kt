@@ -761,6 +761,22 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
             handler.removeMessages(it)
             handler.sendEmptyMessage(it)
         }
+
+        // VLMe: onStop() detaches the video views (cleanUI) — e.g. when the
+        // screen turns off in system PiP mode, where playback now keeps going
+        // audio-only. Nothing re-attached them on the way back, so the video
+        // stayed black in the PiP window and after expanding to the full
+        // player (the MediaPlayer.Event.Vout -> updateVideoSurfaces() path
+        // cannot help: with no views attached there is no vout to fire the
+        // event). Re-attach here, the same call startPlayback makes; the
+        // guard keeps it a no-op whenever the views are already attached.
+        service?.run {
+            val vlcVout = vout
+            if (isPlaying && vlcVout != null && !vlcVout.areViewsAttached()
+                    && !displayManager.isOnRenderer) videoLayout?.let {
+                mediaplayer.attachViews(it, displayManager, true, false)
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

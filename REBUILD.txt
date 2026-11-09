@@ -164,6 +164,18 @@ phone):
 - Also skip the switchToAudioMode() call in onStop() in system PiP mode:
   it finishes the activity (exitOK) and would destroy the PiP window.
   The audio-mode switch stays as-is for the full player.
+- onStop() also detaches the video views (cleanUI), and nothing
+  re-attached them on the way back — so after the screen-off fix the
+  audio kept playing but the video came back black, in the PiP window
+  and after expanding to the full player (the MediaPlayer.Event.Vout ->
+  updateVideoSurfaces() path cannot help: with no views attached there
+  is no vout to fire the event). Fix: at the end of onResume(), if the
+  service is playing and the views are not attached, re-attach them
+  with the same call startPlayback makes
+  (mediaplayer.attachViews(videoLayout, displayManager, true, false)),
+  guarded by areViewsAttached() so it is a no-op whenever the views are
+  already attached. Do not restrict the guard to PiP mode: the expand
+  case resumes the activity outside PiP and needs the same re-attach.
 - onPause() is already PiP-safe (it checks isInPictureInPictureMode),
   so no change is needed there. isSystemPip is already computed in
   onStop() as isInPiPMode && !isPlayingPopup (isPlayingPopup means the
