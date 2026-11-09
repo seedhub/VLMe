@@ -142,8 +142,35 @@ and confirm the APK installs before calling the step done.
 
 Prompt 11 — Pop-up player keeps playing when the screen is off
 ----------------------------------------------------------------
-The pop-up player is owned by the PlaybackService (PopupManager), not by
-an Activity. When the screen turns off, the pop-up's SurfaceView surface
+There are TWO pop-up paths and both must survive the screen turning off.
+The HUD pop-up button enters Android system PiP on a modern phone
+(enterPictureInPictureMode; the VideoPlayerActivity stays alive in PiP
+mode) — the legacy PopupManager overlay is only used when the device has
+no PiP support or the "force legacy pop-up" setting is on. Fixing only
+one path leaves the other pausing on screen-off, which is exactly what
+happened first: the PopupManager fix alone did not help, because the
+phone was using system PiP.
+
+System PiP path (VideoPlayerActivity, the one that matters on a modern
+phone):
+- When the screen turns off, the PiP activity gets onStop(). onStop()
+  must NOT stop playback in system PiP mode: guard the stopPlayback()
+  call so it runs only when not in system PiP, or when the PiP window
+  itself is being dismissed (isFinishing). cleanUI() already detaches
+  the video views, so the player keeps going audio-only on the
+  service's wake lock and foreground notification; the video re-attaches
+  when the screen turns back on (MediaPlayer.Event.Vout ->
+  updateVideoSurfaces()).
+- Also skip the switchToAudioMode() call in onStop() in system PiP mode:
+  it finishes the activity (exitOK) and would destroy the PiP window.
+  The audio-mode switch stays as-is for the full player.
+- onPause() is already PiP-safe (it checks isInPictureInPictureMode),
+  so no change is needed there. isSystemPip is already computed in
+  onStop() as isInPiPMode && !isPlayingPopup (isPlayingPopup means the
+  legacy overlay is active).
+
+Legacy PopupManager path (PopupManager, service-owned overlay):
+- When the screen turns off, the pop-up's SurfaceView surface
 is destroyed; detach the video output so playback continues audio-only,
 and re-attach it when the screen turns back on:
 - In PopupManager, register a BroadcastReceiver for ACTION_SCREEN_OFF and

@@ -1006,13 +1006,23 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         alertDialog?.dismiss()
         val isPlayingPopup = service?.isPlayingPopup == true
         val isSystemPip = (service?.isInPiPMode?.value == true) && !isPlayingPopup
+        // VLMe: in system PiP mode the activity is stopped when the screen
+        // turns off — switching to audio mode here would finish the activity
+        // (exitOK) and destroy the PiP window, so skip it in PiP.
         if (displayManager.isPrimary && !isFinishing && service?.isPlaying == true
                 && "1" == settings.getString(KEY_VIDEO_APP_SWITCH, "0") && !PlaybackService.hasRenderer()
-                && (!isSystemPip || !isInteractive)) {
+                && !isSystemPip) {
             switchToAudioMode(false)
         }
         cleanUI()
-        stopPlayback()
+        // VLMe: same screen-off case — stopping playback here pauses the
+        // pop-up. cleanUI() already detached the video views, so the player
+        // keeps going audio-only on the service's wake lock and foreground
+        // notification; the video re-attaches when the screen turns back on
+        // (MediaPlayer.Event.Vout -> updateVideoSurfaces()). Still stop when
+        // the PiP window itself is being dismissed (isFinishing).
+        if (!isSystemPip || isFinishing)
+            stopPlayback()
         service?.playlistManager?.videoStatsOn?.postValue(false)
         if (isInteractive && !isPlayingPopup)
             service?.isInPiPMode?.value = false
