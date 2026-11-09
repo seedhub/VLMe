@@ -163,14 +163,23 @@ exists there. The move must never fail silently: show a Moving toast
 when it starts, a Moved message on success (in the video grid a
 successful move is otherwise invisible — the video stays in the grid),
 and a write-access toast when the permission check blocks it instead
-of running the move. After a move, reload the source parent and destination
+of running the move. The picker hands the chosen destination to the
+move by direct callback (MoveDestinationDialog.onDestinationSelected,
+set by the caller before showing the dialog) — never depend on the
+fragment-result round trip alone, which once failed silently with no
+toast and no move. Keep the fragment result only as a fallback for a
+dialog restored without its callback (e.g. after a rotation). The move
+itself is one shared performMove() in MediaBrowserFragment (and one in
+HeaderMediaListActivity for the track lists), used by both the callback
+and the fallback listener. After a move, reload the source parent and destination
 folders in the medialibrary (Medialibrary.getInstance().reload) so the
 moved file shows up in its new place and not the old one.
 Files: gui/dialogs/MoveDestinationDialog.kt (+ dialog_move_destination.xml
 and item_move_destination_folder.xml layouts), FileUtils.moveFile,
 CTX_MOVE in ContextOption.kt + ContextSheet.kt, menu entry in
-BaseBrowserFragment.kt (context menu + action mode) with the actual
-move in its MOVE_DESTINATION_DIALOG_RESULT listener, moveItems() in
+BaseBrowserFragment.kt (context menu + action mode) with the
+MOVE_DESTINATION_DIALOG_RESULT listener kept only as a fallback,
+moveItems() + performMove() in
 MediaBrowserFragment.kt, action_mode_file_move in
 action_mode_browser_file.xml (ic_move_media icon), strings in
 application/resources strings.xml. Video grid: CTX_MOVE in the video
