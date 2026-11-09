@@ -176,6 +176,13 @@ phone):
   guarded by areViewsAttached() so it is a no-op whenever the views are
   already attached. Do not restrict the guard to PiP mode: the expand
   case resumes the activity outside PiP and needs the same re-attach.
+  Attaching alone is not enough in the PiP window: after attachViews,
+  also call mediaplayer.updateVideoSurfaces() to bind the surface —
+  without it the PiP video stays black after screen-on even though the
+  views are attached again. That call is exactly what restores the
+  picture when expanding out of PiP (onPictureInPictureModeChanged
+  calls it), so the screen-on path now does the same two steps the
+  expand path does.
 - onPause() is already PiP-safe (it checks isInPictureInPictureMode),
   so no change is needed there. isSystemPip is already computed in
   onStop() as isInPiPMode && !isPlayingPopup (isPlayingPopup means the

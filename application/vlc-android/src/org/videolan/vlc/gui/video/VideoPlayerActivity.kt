@@ -768,13 +768,19 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         // stayed black in the PiP window and after expanding to the full
         // player (the MediaPlayer.Event.Vout -> updateVideoSurfaces() path
         // cannot help: with no views attached there is no vout to fire the
-        // event). Re-attach here, the same call startPlayback makes; the
-        // guard keeps it a no-op whenever the views are already attached.
+        // event). Re-attach here, the same call startPlayback makes, and
+        // then bind the surface with updateVideoSurfaces(): attaching the
+        // views alone leaves the video black in the PiP window — the
+        // surface is only bound when updateVideoSurfaces() runs, which is
+        // exactly what restores the picture when expanding out of PiP
+        // (onPictureInPictureModeChanged calls it). The guard keeps this a
+        // no-op whenever the views are already attached.
         service?.run {
             val vlcVout = vout
             if (isPlaying && vlcVout != null && !vlcVout.areViewsAttached()
                     && !displayManager.isOnRenderer) videoLayout?.let {
                 mediaplayer.attachViews(it, displayManager, true, false)
+                mediaplayer.updateVideoSurfaces()
             }
         }
     }
