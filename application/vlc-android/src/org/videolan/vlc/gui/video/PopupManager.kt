@@ -24,7 +24,10 @@
 
 package org.videolan.vlc.gui.video
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Handler
 import android.os.Looper
@@ -47,6 +50,7 @@ import org.videolan.resources.ACTION_REMOTE_PLAYPAUSE
 import org.videolan.resources.ACTION_REMOTE_STOP
 import org.videolan.resources.ACTION_REMOTE_SWITCH_VIDEO
 import org.videolan.resources.NotificationIds
+import org.videolan.resources.util.registerReceiverCompat
 import org.videolan.resources.util.startForegroundCompat
 import org.videolan.resources.util.stopForegroundCompat
 import org.videolan.tools.POPUP_KEEPSCREEN
@@ -75,6 +79,22 @@ class PopupManager(private val service: PlaybackService) : PlaybackService.Callb
             removePopup()
         }}
 
+    // Screen-off playback: when the screen turns off the video output is
+    // detached so playback continues audio-only (the service keeps its wake
+    // lock and foreground notification). When the screen turns back on the
+    // video output is re-attached to the pop-up surface.
+    private var videoDetached = false
+    private var screenReceiverRegistered = false
+
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> detachVideoForScreenOff()
+                Intent.ACTION_SCREEN_ON -> attachVideoForScreenOn()
+            }
+        }
+    }
+
     private val handler = object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
             val visibility = if (msg.what == SHOW_BUTTONS) View.VISIBLE else View.GONE
@@ -89,6 +109,11 @@ class PopupManager(private val service: PlaybackService) : PlaybackService.Callb
         // If the popup is killed from the x button, isInPiPMode will still be true
         // and when reopening the app will restart the video player
         service.isInPiPMode.value = false
+        if (screenReceiverRegistered) {
+            service.unregisterReceiver(screenReceiver)
+            screenReceiverRegistered = false
+        }
+        videoDetached = false
         hideNotification()
         val view = rootView ?: return
         service.removeCallback(this)
@@ -122,6 +147,41 @@ class PopupManager(private val service: PlaybackService) : PlaybackService.Callb
         vlcVout.addCallback(this)
         vlcVout.attachViews(this)
         view.setVLCVOut(vlcVout)
+        videoDetached = false
+        if (!screenReceiverRegistered) {
+            service.registerReceiverCompat(screenReceiver, IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
+            }, false)
+            screenReceiverRegistered = true
+        }
+    }
+
+    /**
+     * Screen off: drop the video output so playback continues audio-only.
+     * The service already holds a partial wake lock while playing and stays
+     * a foreground service, so the audio keeps going with the screen off.
+     */
+    private fun detachVideoForScreenOff() {
+        if (videoDetached) return
+        val vlcVout = service.vout ?: return
+        if (!vlcVout.areViewsAttached()) return
+        vlcVout.detachViews()
+        videoDetached = true
+    }
+
+    /**
+     * Screen on: re-attach the video output to the pop-up surface so the
+     * video resumes. onSurfacesCreated then re-enables the video track.
+     */
+    private fun attachVideoForScreenOn() {
+        if (!videoDetached) return
+        val view = rootView ?: return
+        val vlcVout = service.vout ?: return
+        vlcVout.setVideoView(view.findViewById<View>(R.id.player_surface) as SurfaceView)
+        vlcVout.addCallback(this)
+        vlcVout.attachViews(this)
+        videoDetached = false
     }
 
     override fun onSingleTapConfirmed(e: MotionEvent): Boolean {

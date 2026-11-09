@@ -140,6 +140,28 @@ Push to master and wait for the GitHub Actions run "Build VLMe debug APK"
 to go green. Download the VLMe-debug-apk artifact, verify its SHA-256,
 and confirm the APK installs before calling the step done.
 
+Prompt 11 — Pop-up player keeps playing when the screen is off
+----------------------------------------------------------------
+The pop-up player is owned by the PlaybackService (PopupManager), not by
+an Activity. When the screen turns off, the pop-up's SurfaceView surface
+is destroyed; detach the video output so playback continues audio-only,
+and re-attach it when the screen turns back on:
+- In PopupManager, register a BroadcastReceiver for ACTION_SCREEN_OFF and
+  ACTION_SCREEN_ON when the pop-up is shown (use the registerReceiverCompat
+  helper, not exported), and unregister it when the pop-up is removed.
+- On screen off, detach the video output (vlcVout.detachViews(), the same
+  call the full player uses to go audio-only) and remember that it is
+  detached. The service already holds a partial wake lock while playing
+  and stays a foreground service with the playback notification, so the
+  audio keeps playing with the screen off.
+- On screen on, re-attach the video output to the pop-up surface
+  (setVideoView + addCallback + attachViews, the same three calls
+  showPopup makes); onSurfacesCreated then re-enables the video track.
+- Do not change the keep-screen-on behavior: the pop-up still keeps the
+  screen on while playing (unless paused). The screen goes off when the
+  user presses the power button, and playback continues. The "Keep screen
+  ON in Pop-Up mode" setting still only affects the paused case.
+
 Verification (after every prompt)
 ----------------------------------
 - The CI run for the change is green.
