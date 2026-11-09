@@ -146,11 +146,14 @@ Add a "Move to…" action for files in the file browser, the video grid,
 and the audio lists (long-press menu and multi-select bar; never for
 folders). It opens a
 "Select destination" bottom sheet modeled on Simple Gallery's
-PickDirectoryDialog/FilePickerDialog: breadcrumb path bar on top,
-subfolders of the current folder to tap into, a "New folder" button,
-OK to confirm the folder shown, back goes up one folder. It starts at
-the source file's parent folder and never navigates above internal
-storage. The move itself is FileUtils.moveFile — a plain renameTo, so
+PickDirectoryDialog: a flat list of every folder in the library holding
+media of the type being moved (medialibrary getFolders, video or audio
+by the items, union when mixed), each row showing the folder name, its
+path, and whether it lives on internal storage or the SD card. Tap a
+folder to select it (the source file's parent is pre-selected), OK
+confirms it, and a "New folder" button creates a subfolder inside the
+selected folder (or the source parent when nothing is selected). The
+move itself is FileUtils.moveFile — a plain renameTo, so
 it only works between folders the app already has access to on the
 same storage; no copy-and-delete fallback. Refuse with a toast if the
 destination is the source folder or a file with the same name already
