@@ -28,6 +28,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.net.toUri
@@ -41,6 +42,7 @@ import androidx.transition.TransitionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.videolan.medialibrary.interfaces.Medialibrary
 import org.videolan.medialibrary.interfaces.media.Folder
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
@@ -61,12 +63,14 @@ import org.videolan.vlc.gui.helpers.UiTools
 import org.videolan.vlc.gui.helpers.fillActionMode
 import org.videolan.vlc.interfaces.Filterable
 import org.videolan.vlc.media.MediaUtils
+import org.videolan.vlc.util.FileUtils
 import org.videolan.vlc.util.Permissions
 import org.videolan.vlc.viewmodels.DisplaySettingsViewModel
 import org.videolan.vlc.viewmodels.MedialibraryViewModel
 import org.videolan.vlc.viewmodels.SortableModel
 import org.videolan.vlc.viewmodels.prepareOptionsMenu
 import org.videolan.vlc.viewmodels.sortMenuTitles
+import java.io.File
 
 private const val TAG = "VLC/MediaBrowserFragment"
 private const val KEY_SELECTION = "key_selection"
@@ -218,7 +222,48 @@ abstract class MediaBrowserFragment<T : SortableModel> : BaseFragment(), Filtera
                 .filter { it.type != MediaWrapper.TYPE_DIR && it.uri.scheme == "file" }
         if (files.isEmpty()) return
         val dialog = MoveDestinationDialog.newInstance(ArrayList(files))
+        dialog.onDestinationSelected = { dest -> performMove(files, dest) }
         dialog.show(requireActivity().supportFragmentManager, MoveDestinationDialog::class.simpleName)
+    }
+
+    /**
+     * Moves [wrappers] into [destPath]: rename first, copy+delete when the
+     * rename cannot cross filesystems (see [FileUtils.moveFile]). Shows a
+     * Moving toast when the move starts and a Moved / Couldn't move message
+     * when it finishes, so a move never fails silently.
+     */
+    protected fun performMove(wrappers: List<MediaWrapper>, destPath: String) {
+        if (wrappers.isEmpty()) return
+        val destDir = File(destPath)
+        val moveAction = Runnable {
+            Toast.makeText(requireActivity(), R.string.msg_moving, Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch(Dispatchers.IO) {
+                val parentsToReload = mutableSetOf<String>()
+                val moved = ArrayList<MediaWrapper>()
+                var failed: MediaWrapper? = null
+                for (mw in wrappers) {
+                    val src = mw.uri.path?.let { File(it) } ?: continue
+                    if (FileUtils.moveFile(src, destDir)) {
+                        moved.add(mw)
+                        src.parent?.let { parentsToReload.add(it) }
+                        parentsToReload.add(destPath)
+                    } else if (failed == null) failed = mw
+                }
+                val medialibrary = Medialibrary.getInstance()
+                for (folder in parentsToReload) medialibrary.reload(folder)
+                val failedItem = failed
+                withContext(Dispatchers.Main) {
+                    failedItem?.let { UiTools.snacker(requireActivity(), getString(R.string.msg_move_failed, it.title)) }
+                    if (failedItem == null && moved.isNotEmpty()) UiTools.snacker(requireActivity(), getString(R.string.msg_move_done, moved.size))
+                    viewModel.refresh()
+                    if (moved.isNotEmpty() && this@MediaBrowserFragment is FileBrowserFragment) {
+                        moved.forEach { viewModel.remove(it) }
+                    }
+                }
+            }
+        }
+        if (Permissions.checkWritePermission(requireActivity(), wrappers[0], moveAction)) moveAction.run()
+        else Toast.makeText(requireActivity(), R.string.msg_move_needs_permission, Toast.LENGTH_LONG).show()
     }
 
     protected open fun removeItem(item: MediaLibraryItem): Boolean {

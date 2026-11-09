@@ -333,34 +333,10 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
             val destPath = bundle.getString(MOVE_DESTINATION_DIALOG_PATH) ?: return@setFragmentResultListener
             val wrappers = items.filterIsInstance<MediaWrapper>()
             if (wrappers.isEmpty()) return@setFragmentResultListener
-            val destDir = File(destPath)
-            val moveAction = kotlinx.coroutines.Runnable {
-                Toast.makeText(this@HeaderMediaListActivity, R.string.msg_moving, Toast.LENGTH_SHORT).show()
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val parentsToReload = mutableSetOf<String>()
-                    var failed: MediaWrapper? = null
-                    var movedCount = 0
-                    for (mw in wrappers) {
-                        val src = mw.uri.path?.let { File(it) } ?: continue
-                        if (FileUtils.moveFile(src, destDir)) {
-                            movedCount++
-                            src.parent?.let { parentsToReload.add(it) }
-                            parentsToReload.add(destPath)
-                        } else if (failed == null) failed = mw
-                    }
-                    val medialibrary = Medialibrary.getInstance()
-                    for (folder in parentsToReload) medialibrary.reload(folder)
-                    val failedItem = failed
-                    val moved = movedCount
-                    withContext(Dispatchers.Main) {
-                        failedItem?.let { UiTools.snacker(this@HeaderMediaListActivity, getString(R.string.msg_move_failed, it.title)) }
-                        if (failedItem == null && moved > 0) UiTools.snacker(this@HeaderMediaListActivity, getString(R.string.msg_move_done, moved))
-                        if (isStarted()) viewModel.refresh()
-                    }
-                }
-            }
-            if (Permissions.checkWritePermission(this@HeaderMediaListActivity, wrappers[0], moveAction)) moveAction.run()
-            else Toast.makeText(this@HeaderMediaListActivity, R.string.msg_move_needs_permission, Toast.LENGTH_LONG).show()
+            // Fallback for a dialog restored without its callback (e.g. after
+            // a configuration change); normally the dialog calls performMove
+            // directly through onDestinationSelected.
+            performMove(wrappers, destPath)
         }
     }
 
@@ -681,7 +657,40 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
         val files = items.filter { it.type != MediaWrapper.TYPE_DIR && it.uri.scheme == "file" }
         if (files.isEmpty()) return
         val dialog = MoveDestinationDialog.newInstance(ArrayList(files))
+        dialog.onDestinationSelected = { dest -> performMove(files, dest) }
         dialog.show(supportFragmentManager, MoveDestinationDialog::class.simpleName)
+    }
+
+    private fun performMove(wrappers: List<MediaWrapper>, destPath: String) {
+        if (wrappers.isEmpty()) return
+        val destDir = File(destPath)
+        val moveAction = kotlinx.coroutines.Runnable {
+            Toast.makeText(this@HeaderMediaListActivity, R.string.msg_moving, Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch(Dispatchers.IO) {
+                val parentsToReload = mutableSetOf<String>()
+                var failed: MediaWrapper? = null
+                var movedCount = 0
+                for (mw in wrappers) {
+                    val src = mw.uri.path?.let { File(it) } ?: continue
+                    if (FileUtils.moveFile(src, destDir)) {
+                        movedCount++
+                        src.parent?.let { parentsToReload.add(it) }
+                        parentsToReload.add(destPath)
+                    } else if (failed == null) failed = mw
+                }
+                val medialibrary = Medialibrary.getInstance()
+                for (folder in parentsToReload) medialibrary.reload(folder)
+                val failedItem = failed
+                val moved = movedCount
+                withContext(Dispatchers.Main) {
+                    failedItem?.let { UiTools.snacker(this@HeaderMediaListActivity, getString(R.string.msg_move_failed, it.title)) }
+                    if (failedItem == null && moved > 0) UiTools.snacker(this@HeaderMediaListActivity, getString(R.string.msg_move_done, moved))
+                    if (isStarted()) viewModel.refresh()
+                }
+            }
+        }
+        if (Permissions.checkWritePermission(this@HeaderMediaListActivity, wrappers[0], moveAction)) moveAction.run()
+        else Toast.makeText(this@HeaderMediaListActivity, R.string.msg_move_needs_permission, Toast.LENGTH_LONG).show()
     }
 
     override fun onClick(v: View) {

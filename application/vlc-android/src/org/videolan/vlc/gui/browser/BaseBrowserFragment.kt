@@ -31,7 +31,6 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.Toast
 import android.view.ViewGroup
 import androidx.appcompat.view.ActionMode
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -338,36 +337,10 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             val destPath = bundle.getString(MOVE_DESTINATION_DIALOG_PATH) ?: return@setFragmentResultListener
             val wrappers = items.filterIsInstance<MediaWrapper>()
             if (wrappers.isEmpty()) return@setFragmentResultListener
-            val destDir = File(destPath)
-            val moveAction = Runnable {
-                Toast.makeText(requireActivity(), R.string.msg_moving, Toast.LENGTH_SHORT).show()
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val parentsToReload = mutableSetOf<String>()
-                    val moved = ArrayList<MediaWrapper>()
-                    var failed: MediaWrapper? = null
-                    for (mw in wrappers) {
-                        val src = mw.uri.path?.let { File(it) } ?: continue
-                        if (FileUtils.moveFile(src, destDir)) {
-                            moved.add(mw)
-                            src.parent?.let { parentsToReload.add(it) }
-                            parentsToReload.add(destPath)
-                        } else if (failed == null) failed = mw
-                    }
-                    val medialibrary = Medialibrary.getInstance()
-                    for (folder in parentsToReload) medialibrary.reload(folder)
-                    val failedItem = failed
-                    withContext(Dispatchers.Main) {
-                        failedItem?.let { UiTools.snacker(requireActivity(), getString(R.string.msg_move_failed, it.title)) }
-                        if (failedItem == null && moved.isNotEmpty()) UiTools.snacker(requireActivity(), getString(R.string.msg_move_done, moved.size))
-                        viewModel.refresh()
-                        if (moved.isNotEmpty() && this@BaseBrowserFragment is FileBrowserFragment) {
-                            moved.forEach { viewModel.remove(it) }
-                        }
-                    }
-                }
-            }
-            if (Permissions.checkWritePermission(requireActivity(), wrappers[0], moveAction)) moveAction.run()
-            else Toast.makeText(requireActivity(), R.string.msg_move_needs_permission, Toast.LENGTH_LONG).show()
+            // Fallback for a dialog restored without its callback (e.g. after
+            // a configuration change); normally the dialog calls performMove
+            // directly through onDestinationSelected.
+            performMove(wrappers, destPath)
         }
         lifecycleScope.launch {
             PlaylistManager.shuffling.collect {

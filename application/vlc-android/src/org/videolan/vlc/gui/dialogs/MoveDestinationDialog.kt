@@ -82,6 +82,15 @@ class MoveDestinationDialog : VLCBottomSheetDialogFragment() {
     private var folders: List<DestFolder> = listOf()
     private var selectedPath: String? = null
     private var sourceParent: String? = null
+
+    /**
+     * Called with the chosen destination path when the user confirms.
+     * The caller sets this before showing the dialog, so the move does
+     * not depend on the fragment-result round trip. When null (e.g. the
+     * dialog was restored after a configuration change), confirm()
+     * falls back to [MOVE_DESTINATION_DIALOG_RESULT].
+     */
+    var onDestinationSelected: ((String) -> Unit)? = null
     private lateinit var folderList: RecyclerView
     private lateinit var emptyView: TextView
     private lateinit var okButton: Button
@@ -183,7 +192,9 @@ class MoveDestinationDialog : VLCBottomSheetDialogFragment() {
             Toast.makeText(requireContext(), R.string.move_file_exists, Toast.LENGTH_LONG).show()
             return
         }
-        setFragmentResult(MOVE_DESTINATION_DIALOG_RESULT, bundleOf(
+        val onSelected = onDestinationSelected
+        if (onSelected != null) onSelected(dest)
+        else setFragmentResult(MOVE_DESTINATION_DIALOG_RESULT, bundleOf(
                 MOVE_DESTINATION_DIALOG_MEDIALIST to ArrayList(medias),
                 MOVE_DESTINATION_DIALOG_PATH to dest))
         dismiss()
