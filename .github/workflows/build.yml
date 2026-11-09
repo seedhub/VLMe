@@ -38,6 +38,16 @@ jobs:
           git config --global user.name "VLMe CI"
           git config --global user.email "vlme-ci@users.noreply.github.com"
 
+      # The Gradle wrapper downloads its distribution from
+      # services.gradle.org on every fresh runner, and that download timed
+      # out twice (10s read timeout). Cache it so the download only has to
+      # succeed once; later runs reuse the cached distribution.
+      - name: Cache Gradle wrapper distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: gradle-wrapper-${{ hashFiles('buildsystem/compile.sh') }}
+
       - name: Init build environment
         run: |
           export PATH="$ANDROID_HOME/cmake/3.22.1/bin:$PATH"
