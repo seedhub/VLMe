@@ -24,12 +24,6 @@
             android:visible="false"
             app:showAsAction="always" />
     <item
-            android:id="@+id/action_mode_file_move"
-            android:icon="@drawable/ic_move_media"
-            android:title="@string/move_to"
-            android:visible="false"
-            app:showAsAction="always" />
-    <item
             android:id="@+id/action_mode_file_add_playlist"
             android:icon="@drawable/ic_add_to_playlist"
             android:title="@string/add_to_playlist"

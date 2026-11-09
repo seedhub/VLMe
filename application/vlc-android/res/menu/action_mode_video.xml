@@ -57,12 +57,6 @@
             android:visible="false"
             app:showAsAction="ifRoom" />
     <item
-            android:id="@+id/action_video_move"
-            android:icon="@drawable/ic_move_media"
-            android:orderInCategory="6"
-            android:title="@string/move_to"
-            app:showAsAction="never" />
-    <item
             android:id="@+id/action_mode_favorite_add"
             android:orderInCategory="6"
             android:title="@string/favorites_add"

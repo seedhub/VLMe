@@ -76,7 +76,6 @@ import org.videolan.resources.MOVIEPEDIA_ACTIVITY
 import org.videolan.resources.MOVIEPEDIA_MEDIA
 import org.videolan.resources.util.getFromMl
 import org.videolan.resources.util.parcelable
-import org.videolan.resources.util.parcelableList
 import org.videolan.tools.BROWSER_DISPLAY_IN_CARDS
 import org.videolan.tools.BROWSER_SHOW_HIDDEN_FILES
 import org.videolan.tools.BROWSER_SHOW_ONLY_MULTIMEDIA
@@ -105,9 +104,6 @@ import org.videolan.vlc.gui.dialogs.DISPLAY_IN_CARDS
 import org.videolan.vlc.gui.dialogs.DisplaySettingsDialog
 import org.videolan.vlc.gui.dialogs.RENAME_DIALOG_MEDIA
 import org.videolan.vlc.gui.dialogs.RENAME_DIALOG_NEW_NAME
-import org.videolan.vlc.gui.dialogs.MOVE_DESTINATION_DIALOG_MEDIALIST
-import org.videolan.vlc.gui.dialogs.MOVE_DESTINATION_DIALOG_PATH
-import org.videolan.vlc.gui.dialogs.MOVE_DESTINATION_DIALOG_RESULT
 import org.videolan.vlc.gui.dialogs.RenameDialog
 import org.videolan.vlc.gui.dialogs.SHOW_HIDDEN_FILES
 import org.videolan.vlc.gui.dialogs.SHOW_ONLY_MULTIMEDIA_FILES
@@ -141,14 +137,12 @@ import org.videolan.vlc.util.ContextOption.CTX_FAV_ADD
 import org.videolan.vlc.util.ContextOption.CTX_FAV_REMOVE
 import org.videolan.vlc.util.ContextOption.CTX_FIND_METADATA
 import org.videolan.vlc.util.ContextOption.CTX_INFORMATION
-import org.videolan.vlc.util.ContextOption.CTX_MOVE
 import org.videolan.vlc.util.ContextOption.CTX_PLAY
 import org.videolan.vlc.util.ContextOption.CTX_PLAY_ALL
 import org.videolan.vlc.util.ContextOption.CTX_PLAY_AS_AUDIO
 import org.videolan.vlc.util.ContextOption.CTX_PLAY_NEXT
 import org.videolan.vlc.util.ContextOption.CTX_QUICK_PLAY
 import org.videolan.vlc.util.ContextOption.CTX_RENAME
-import org.videolan.vlc.util.FileUtils
 import org.videolan.vlc.util.FlagSet
 import org.videolan.vlc.util.LifecycleAwareScheduler
 import org.videolan.vlc.util.Permissions
@@ -331,16 +325,6 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 }
                 viewModel.refresh()
             }
-        }
-        requireActivity().supportFragmentManager.setFragmentResultListener(MOVE_DESTINATION_DIALOG_RESULT, viewLifecycleOwner) { _, bundle ->
-            val items = bundle.parcelableList<MediaLibraryItem>(MOVE_DESTINATION_DIALOG_MEDIALIST) ?: return@setFragmentResultListener
-            val destPath = bundle.getString(MOVE_DESTINATION_DIALOG_PATH) ?: return@setFragmentResultListener
-            val wrappers = items.filterIsInstance<MediaWrapper>()
-            if (wrappers.isEmpty()) return@setFragmentResultListener
-            // Fallback for a dialog restored without its callback (e.g. after
-            // a configuration change); normally the dialog calls performMove
-            // directly through onDestinationSelected.
-            performMove(wrappers, destPath)
         }
         lifecycleScope.launch {
             PlaylistManager.shuffling.collect {
@@ -649,8 +633,6 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
         menu.findItem(R.id.action_mode_file_info).isVisible = single && (type == MediaWrapper.TYPE_AUDIO || type == MediaWrapper.TYPE_VIDEO)
         menu.findItem(R.id.action_mode_file_append).isVisible = PlaylistManager.hasMedia()
         menu.findItem(R.id.action_mode_file_delete).isVisible = fileBrowser
-        val hasDir = adapter.multiSelectHelper.getSelection().any { it is MediaWrapper && it.type == MediaWrapper.TYPE_DIR }
-        menu.findItem(R.id.action_mode_file_move).isVisible = fileBrowser && !hasDir
         return true
     }
 
@@ -665,7 +647,6 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 R.id.action_mode_file_add_playlist -> requireActivity().addToPlaylist(list)
                 R.id.action_mode_file_info -> requireActivity().showMediaInfo(list[0])
                 R.id.action_mode_file_delete -> removeItems(list)
-                R.id.action_mode_file_move -> moveItems(list)
                 else -> {
                     stopActionMode()
                     return false
@@ -838,7 +819,6 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                     val isAudio = mw.type == MediaWrapper.TYPE_AUDIO
                     val isMedia = isVideo || isAudio
                     if (isMedia) addAll(CTX_ADD_TO_PLAYLIST, CTX_APPEND, CTX_INFORMATION, CTX_PLAY_ALL)
-                    if (!isRootDirectory && this@BaseBrowserFragment is FileBrowserFragment) add(CTX_MOVE)
                     if (!isAudio && isMedia) add(CTX_PLAY_AS_AUDIO)
                     if (!isMedia) add(CTX_PLAY)
                     if (isVideo) add(CTX_DOWNLOAD_SUBTITLES)
@@ -894,7 +874,6 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 val dialog = RenameDialog.newInstance(mw, true)
                 dialog.show(requireActivity().supportFragmentManager, RenameDialog::class.simpleName)
             }
-            CTX_MOVE -> moveItems(arrayListOf(mw))
 
             CTX_INFORMATION -> requireActivity().showMediaInfo(mw)
             CTX_PLAY_AS_AUDIO -> lifecycleScope.launch {

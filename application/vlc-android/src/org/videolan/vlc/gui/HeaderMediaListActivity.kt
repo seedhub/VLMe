@@ -32,7 +32,6 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.view.ActionMode
 import androidx.appcompat.widget.SearchView
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -49,7 +48,6 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
@@ -87,10 +85,6 @@ import org.videolan.vlc.gui.dialogs.ConfirmDeleteDialog
 import org.videolan.vlc.gui.dialogs.CtxActionReceiver
 import org.videolan.vlc.gui.dialogs.DEFAULT_ACTIONS
 import org.videolan.vlc.gui.dialogs.DisplaySettingsDialog
-import org.videolan.vlc.gui.dialogs.MOVE_DESTINATION_DIALOG_MEDIALIST
-import org.videolan.vlc.gui.dialogs.MOVE_DESTINATION_DIALOG_PATH
-import org.videolan.vlc.gui.dialogs.MOVE_DESTINATION_DIALOG_RESULT
-import org.videolan.vlc.gui.dialogs.MoveDestinationDialog
 import org.videolan.vlc.gui.dialogs.RENAME_DIALOG_MEDIA
 import org.videolan.vlc.gui.dialogs.RENAME_DIALOG_NEW_NAME
 import org.videolan.vlc.gui.dialogs.RenameDialog
@@ -124,14 +118,12 @@ import org.videolan.vlc.util.ContextOption.CTX_FAV_REMOVE
 import org.videolan.vlc.util.ContextOption.CTX_GO_TO_ALBUM_ARTIST
 import org.videolan.vlc.util.ContextOption.CTX_GO_TO_ARTIST
 import org.videolan.vlc.util.ContextOption.CTX_INFORMATION
-import org.videolan.vlc.util.ContextOption.CTX_MOVE
 import org.videolan.vlc.util.ContextOption.CTX_PLAY_ALL
 import org.videolan.vlc.util.ContextOption.CTX_PLAY_NEXT
 import org.videolan.vlc.util.ContextOption.CTX_RENAME
 import org.videolan.vlc.util.ContextOption.CTX_SET_RINGTONE
 import org.videolan.vlc.util.ContextOption.CTX_SHARE
 import org.videolan.vlc.util.ContextOption.Companion.createCtxPlaylistItemFlags
-import org.videolan.vlc.util.FileUtils
 import org.videolan.vlc.util.Permissions
 import org.videolan.vlc.util.ThumbnailsProvider
 import org.videolan.vlc.util.getScreenWidth
@@ -328,16 +320,6 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
                 viewModel.rename(item, name)
             }
         }
-        supportFragmentManager.setFragmentResultListener(MOVE_DESTINATION_DIALOG_RESULT, this) { _, bundle ->
-            val items = bundle.parcelableList<MediaLibraryItem>(MOVE_DESTINATION_DIALOG_MEDIALIST) ?: return@setFragmentResultListener
-            val destPath = bundle.getString(MOVE_DESTINATION_DIALOG_PATH) ?: return@setFragmentResultListener
-            val wrappers = items.filterIsInstance<MediaWrapper>()
-            if (wrappers.isEmpty()) return@setFragmentResultListener
-            // Fallback for a dialog restored without its callback (e.g. after
-            // a configuration change); normally the dialog calls performMove
-            // directly through onDestinationSelected.
-            performMove(wrappers, destPath)
-        }
     }
 
     override fun onResume() {
@@ -476,7 +458,6 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
             (item as? MediaWrapper)?.let { media ->
                 val flags = createCtxPlaylistItemFlags().apply {
                     if (item.isFavorite) add(CTX_FAV_REMOVE) else add(CTX_FAV_ADD)
-                    if (media.uri.scheme == "file") add(CTX_MOVE)
                     if (media.type == MediaWrapper.TYPE_STREAM || (media.type == MediaWrapper.TYPE_ALL && isSchemeHttpOrHttps(media.uri.scheme)))
                         addAll(CTX_COPY, CTX_RENAME)
                     if (media.type == MediaWrapper.TYPE_AUDIO) {
@@ -547,7 +528,6 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
         menu.findItem(R.id.action_mode_audio_info).isVisible = isSong
         menu.findItem(R.id.action_mode_audio_append).isVisible = PlaylistManager.hasMedia()
         menu.findItem(R.id.action_mode_audio_delete).isVisible = true
-        menu.findItem(R.id.action_mode_audio_move).isVisible = isMedia
         menu.findItem(R.id.action_mode_audio_share).isVisible = isSong
         menu.findItem(R.id.action_mode_favorite_add).isVisible = audioBrowserAdapter.multiSelectHelper.getSelection().none { it.isFavorite }
         menu.findItem(R.id.action_mode_favorite_remove).isVisible = audioBrowserAdapter.multiSelectHelper.getSelection().none { !it.isFavorite }
@@ -570,7 +550,6 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
             R.id.action_mode_audio_share -> lifecycleScope.launch { share(list.map { it as MediaWrapper }) }
             R.id.action_mode_audio_set_song -> setRingtone(list[0] as MediaWrapper)
             R.id.action_mode_audio_delete -> lifecycleScope.launch { if (isPlaylist) removeFromPlaylist(tracks, indexes.toMutableList()) else removeItems(tracks) }
-            R.id.action_mode_audio_move -> moveItems(tracks)
             R.id.action_mode_favorite_add -> lifecycleScope.launch { viewModel.changeFavorite(tracks, true) }
             R.id.action_mode_favorite_remove -> lifecycleScope.launch { viewModel.changeFavorite(tracks, false) }
             else -> return false
@@ -597,7 +576,6 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
         when (option) {
             CTX_INFORMATION -> showInfoDialog(media)
             CTX_DELETE -> lifecycleScope.launch { removeItem(position, media) }
-            CTX_MOVE -> moveItems(listOf(media))
             CTX_APPEND -> MediaUtils.appendMedia(this, media.tracks)
             CTX_PLAY_NEXT -> MediaUtils.insertNext(this, media.tracks)
             CTX_PLAY_ALL -> MediaUtils.playTracks(this, viewModel.tracksProvider, position, false)
@@ -651,46 +629,6 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
     private fun removeItems(items: List<MediaWrapper>) {
         val dialog = ConfirmDeleteDialog.newInstance(ArrayList(items))
         dialog.show(supportFragmentManager, ConfirmDeleteDialog::class.simpleName)
-    }
-
-    private fun moveItems(items: List<MediaWrapper>) {
-        val files = items.filter { it.type != MediaWrapper.TYPE_DIR && it.uri.scheme == "file" }
-        if (files.isEmpty()) return
-        val dialog = MoveDestinationDialog.newInstance(ArrayList(files))
-        dialog.onDestinationSelected = { dest -> performMove(files, dest) }
-        dialog.show(supportFragmentManager, MoveDestinationDialog::class.simpleName)
-    }
-
-    private fun performMove(wrappers: List<MediaWrapper>, destPath: String) {
-        if (wrappers.isEmpty()) return
-        val destDir = File(destPath)
-        val moveAction = kotlinx.coroutines.Runnable {
-            Toast.makeText(this@HeaderMediaListActivity, R.string.msg_moving, Toast.LENGTH_SHORT).show()
-            lifecycleScope.launch(Dispatchers.IO) {
-                val parentsToReload = mutableSetOf<String>()
-                var failed: MediaWrapper? = null
-                var movedCount = 0
-                for (mw in wrappers) {
-                    val src = mw.uri.path?.let { File(it) } ?: continue
-                    if (FileUtils.moveFile(src, destDir)) {
-                        movedCount++
-                        src.parent?.let { parentsToReload.add(it) }
-                        parentsToReload.add(destPath)
-                    } else if (failed == null) failed = mw
-                }
-                val medialibrary = Medialibrary.getInstance()
-                for (folder in parentsToReload) medialibrary.reload(folder)
-                val failedItem = failed
-                val moved = movedCount
-                withContext(Dispatchers.Main) {
-                    failedItem?.let { UiTools.snacker(this@HeaderMediaListActivity, getString(R.string.msg_move_failed, it.title)) }
-                    if (failedItem == null && moved > 0) UiTools.snacker(this@HeaderMediaListActivity, getString(R.string.msg_move_done, moved))
-                    if (isStarted()) viewModel.refresh()
-                }
-            }
-        }
-        if (Permissions.checkWritePermission(this@HeaderMediaListActivity, wrappers[0], moveAction)) moveAction.run()
-        else Toast.makeText(this@HeaderMediaListActivity, R.string.msg_move_needs_permission, Toast.LENGTH_LONG).show()
     }
 
     override fun onClick(v: View) {
