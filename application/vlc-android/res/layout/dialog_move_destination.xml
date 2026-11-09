@@ -49,25 +49,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/move_title" />
 
-    <HorizontalScrollView
-            android:id="@+id/move_breadcrumbs_scroll"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="8dp"
-            android:scrollbars="none"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/move_subtitle">
-
-        <LinearLayout
-                android:id="@+id/move_breadcrumbs"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal" />
-    </HorizontalScrollView>
-
     <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/move_folder_list"
             android:layout_width="0dp"
@@ -75,18 +56,18 @@
             android:layout_marginTop="8dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/move_breadcrumbs_scroll" />
+            app:layout_constraintTop_toBottomOf="@id/move_subtitle" />
 
     <TextView
             android:id="@+id/move_empty"
             android:layout_width="0dp"
             android:layout_height="300dp"
             android:gravity="center"
-            android:text="@string/no_subfolders"
+            android:text="@string/move_no_folders"
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/move_breadcrumbs_scroll" />
+            app:layout_constraintTop_toBottomOf="@id/move_subtitle" />
 
     <Button
             android:id="@+id/move_new_folder_button"

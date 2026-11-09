@@ -881,6 +881,8 @@
     <string name="msg_move_failed">Couldn\'t move %1$s</string>
     <string name="move_same_folder">Source and destination are the same folder</string>
     <string name="move_file_exists">A file with this name already exists in the destination folder</string>
+    <string name="sd_card">SD card</string>
+    <string name="move_no_folders">No folders in your library</string>
     <string name="manual_search">Manual search</string>
     <string name="subtitle_search_name_hint">Name</string>
     <string name="subtitle_query_edit">Edit subtitle search query</string>
