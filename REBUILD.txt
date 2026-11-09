@@ -1,0 +1,163 @@
+VLMe — rebuild instructions
+===========================
+Purpose: if this repo is ever lost, follow these prompts in order to
+recreate VLMe from upstream VLC. Each prompt is one self-contained change.
+Do them in order; verify after each one (see "Verification" at the end).
+
+Starting point
+--------------
+Upstream: https://code.videolan.org/videolan/vlc-android.git
+Upstream commit: 57fe6cf (VLC 3.7.2)
+Repo: https://github.com/seedhub/VLMe (public)
+Build route: GitHub Actions only. Local Gradle builds do not work in the
+build VM, so every change is verified by a CI run (see Prompt 10).
+
+Prompt 1 — Clone upstream and set up the build
+------------------------------------------------
+Clone the upstream repo at commit 57fe6cf. Add the GitHub Actions
+workflow .github/workflows/build.yml: JDK 17, Android SDK 36,
+NDK 21.4.7075529, then `bash ./buildsystem/compile.sh --init`,
+then `./gradlew assembleDebug`. Publish the APK as artifact
+"VLMe-debug-apk" from application/app/build/outputs/apk/debug/*.apk.
+Confirm a green run and a downloadable APK before doing anything else.
+NOTE: compile.sh must be invoked via `bash` in the workflow (see "Quirks").
+
+Prompt 2 — Remove all network features and UI
+----------------------------------------------
+Remove every network feature and its UI: network browsing, streaming,
+remote access, network discovery UI. Delete NetworkMonitor (it crashed
+on media-scan taps). ConnectivityInterceptor.kt should end up holding
+only NoConnectivityException plus a note that the interceptor was removed.
+Harmless leftovers you do NOT need to chase: the word NetworkMonitor in
+a header comment in ExternalMonitor.kt; one commented-out addInterceptor
+line in MoviepediaApiService.kt; buildsystem/gitlab/.gitlab-ci.yml still
+references the deleted compile-remoteaccess.sh (GitLab CI only, ignore).
+
+Prompt 3 — Re-theme and add the accent color picker
+----------------------------------------------------
+Apply a narrower Material re-theme (not a full Material 3 facelift) and
+add an accent/seed color picker in Settings over six preset colors.
+Any color that is not one of the six presets falls back to VLC orange.
+The mapping lives in UiTools.kt, accentOverlayRes(): each preset maps to
+its ThemeOverlay_VLMe_Accent_* style. Map BOTH values for each color —
+the R.color.accent_* value AND the library's Material 500 hex — because
+the picker returns the library default, so mapping only the preset
+value means no overlay is ever applied:
+  Blue   #2196F3  -> ThemeOverlay_VLMe_Accent_Blue
+  Green  #4CAF50  -> ThemeOverlay_VLMe_Accent_Green
+  Red    #F44336  -> ThemeOverlay_VLMe_Accent_Red
+  Purple #9C27B0  -> ThemeOverlay_VLMe_Accent_Purple
+  Teal   #009688  -> ThemeOverlay_VLMe_Accent_Teal
+  Pink   #E91E63  -> ThemeOverlay_VLMe_Accent_Pink
+In-app icons are green (#4C6971, dark surfaces #7FA3A8). Do NOT touch
+the launcher icon.
+
+Prompt 4 — Pop-up player as a real HUD button
+----------------------------------------------
+Promote the pop-up player to a real button on the player HUD, then swap
+it with the aspect-ratio button. End state of the bottom control bar:
+aspect ratio (player_resize) is far left (chain head, spread_inside,
+start margin); the pop-up button sits where aspect ratio used to be.
+Layout only for the swap; no behavior change.
+
+Prompt 5 — Bigger pop-up controls (2.5x)
+------------------------------------------
+Enlarge the pop-up player controls to 2.5x: the close, expand and
+play/pause controls in res/layout/video_popup.xml become 120dp x 120dp,
+and the default pop-up window becomes 360 x 202dp with expand at the
+top-left. The glyphs are upscaled 48dp PNGs, so they look slightly soft.
+A height the user set by pinching overrides the new default. Portrait
+and 4:3 videos crowd more. Do NOT go to full 3x (144dp): it cannot fit
+a 16:9 pop-up on this phone's screen width.
+
+Prompt 6 — Playback-speed HUD button, then swap it with aspect ratio
+----------------------------------------------------------------------
+Add a playback-speed button to the player HUD: a player_speed ImageView
+(ic_speed) wired to VideoPlayerActivity.showPlaybackSpeedDialog(). It
+opens the same PlaybackSpeedDialog as the top speed chip, but it is
+always visible while the overlay is up (the top chip only shows when
+the rate is not 1.0). Then swap it with the aspect-ratio button:
+aspect ratio goes back to far left, and the speed button sits next to
+the three-dot menu (between player_popup and player_overlay_adv_function).
+Layout only for the swap; no code changes.
+
+Prompt 7 — "Date added" sort in all sort menus
+-----------------------------------------------
+Add a "Date added" sort option (oldest first / newest first) to every
+sort menu. The medialibrary criterion SORT_INSERTIONDATE already exists;
+the option already works in the audio browser and video grid Display
+Settings, and is missing or dead everywhere else. Add it to:
+  - HeaderMediaListActivity (album/track lists)
+  - PlaylistFragment
+  - AudioAlbumsSongsFragment Display Settings lists (filtered by canSortBy)
+  - the toolbar "Sort by" submenu: gate the item on
+    canSortByInsertionDate() in prepareOptionsMenu (it is currently ungated)
+  - the TV sort popup: it shows the option but has no click case; add one
+    mapping to SORT_INSERTIONDATE
+Rename the label from "Insertion date" to "Date added"
+(sortby_insertion, sortby_date_insertion, PreferenceParser summary).
+Leave OUT: the file browser (it sorts in memory and plain files have no
+medialibrary insertion date — do not fake one) and History (it is
+chronological by playback). The mobile Sortable.kt popup is dead code
+with no callers; ignore it.
+
+Prompt 8 — Fix the sort-direction indicator
+-------------------------------------------
+In UiTools.kt, updateSortTitles(MediaBrowserFragment): the last-modified
+menu item is mapped to SORT_RELEASEDATE; change it to
+SORT_LASTMODIFICATIONDATE so the up/down indicator lands on the right
+row when sorted by last-modified. The same overload is also missing the
+insertion-date line entirely — add it, mirroring the sibling provider
+overload. Check the provider overload line by line while you are there;
+it was already correct on every row.
+
+Prompt 9 — Rename the applicationId to io.github.seedhub.vlme
+---------------------------------------------------------------
+Change the applicationId from org.videolan.vlc to io.github.seedhub.vlme
+(debug builds become io.github.seedhub.vlme.debug). The single source is
+appId in the root build.gradle; everything else derives from it. Update
+these identity-affecting occurrences:
+  - application/vlc-android/res/xml/shortcuts.xml (4x targetPackage) and
+    the debug flavor copy (4x targetPackage, with the .debug suffix)
+  - application/vlc-android/res/xml/searchable.xml search-suggestion
+    authority
+  - custom permissions in application/app/flavors/release/AndroidManifest.xml
+    and application/vlc-android/AndroidManifest.xml — rename them to
+    io.github.seedhub.vlme.permission.* (two apps cannot define the same
+    custom permission under different signing keys)
+  - PlaybackService.kt metachanged broadcast: use BuildConfig.APP_ID
+    instead of the hardcoded "org.videolan.vlc"
+  - buildsystem/compile.sh adb test/run helpers: retarget the package
+    (the test runner class stays org.videolan.vlc.MultidexTestRunner)
+Do NOT change Java/Kotlin namespaces, imports, or package declarations.
+The new package installs as a separate app: anyone on the old
+org.videolan.vlc build must uninstall first; data does not migrate.
+The launcher label still says VLC — that is a separate change, not this one.
+
+Prompt 10 — CI build (repeat after every prompt)
+-------------------------------------------------
+Push to master and wait for the GitHub Actions run "Build VLMe debug APK"
+to go green. Download the VLMe-debug-apk artifact, verify its SHA-256,
+and confirm the APK installs before calling the step done.
+
+Verification (after every prompt)
+----------------------------------
+- The CI run for the change is green.
+- The artifact APK is downloaded and its SHA-256 matches the digest
+  shown on the run page.
+- UI behavior (button positions, sort ordering, indicator rows) can only
+  be confirmed on a real phone; a green build alone does not prove it.
+
+Quirks — read before you push anything
+---------------------------------------
+- Snapshot pushes (the push mechanism used for this repo) strip the
+  executable bit from files they touch. compile.sh arrives on GitHub as
+  mode 100644, so the workflow must invoke it as `bash
+  ./buildsystem/compile.sh --init` — never as ./buildsystem/compile.sh.
+  A fresh clone also gets a non-executable compile.sh; only a real git
+  push restores the mode.
+- The GitHub App token used for pushes CANNOT push workflow files
+  (403 on .github/workflows/*). Edit .github/workflows/build.yml in the
+  GitHub web UI instead.
+- This is a debug build, not a signed release build.
+- A few bits still hardcode VLC orange; that is accepted, not a bug.
