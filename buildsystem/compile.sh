@@ -333,13 +333,20 @@ if [ ! -e "./gradlew" ] || [ ! -x "./gradlew" ]; then
         echo $GRADLE_SHA256 ${GRADLE_DOWNLOADED_ZIP} | sha256sum -c || fail "gradle: hash mismatch"
 
         unzip -o ${GRADLE_DOWNLOADED_ZIP} || fail "gradle: unzip failed"
-        rm -rf ${GRADLE_DOWNLOADED_ZIP}
+        # VLMe: keep the zip. The wrapper's own download of the same file
+        # from services.gradle.org keeps timing out on the CI runner
+        # (10s read timeout, 0 bytes), so ./gradlew below reuses this
+        # already-downloaded and hash-verified copy instead.
     fi
 
     gradle wrapper ${gradle_prop} || fail "gradle: wrapper failed"
 
     chmod a+x gradlew
 fi
+# VLMe: point the freshly generated wrapper at the local zip (see above).
+# Without this, ./gradlew downloads the distribution from the network
+# and fails on the runner with a 10s read timeout.
+sed -i "s|^distributionUrl=.*|distributionUrl=file\\\\://$(pwd -P)/gradle-${GRADLE_VERSION}-bin.zip|" gradle/wrapper/gradle-wrapper.properties || fail "gradle: cannot rewrite wrapper distributionUrl"
 ./gradlew -version || fail "gradle: wrapper failed"
 
 ####################

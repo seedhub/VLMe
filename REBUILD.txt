@@ -159,5 +159,14 @@ Quirks — read before you push anything
 - The GitHub App token used for pushes CANNOT push workflow files
   (403 on .github/workflows/*). Edit .github/workflows/build.yml in the
   GitHub web UI instead.
+- The Gradle wrapper's download of its distribution from
+  services.gradle.org times out on the CI runner (10s read timeout, 0
+  bytes, three runs in a row) even though the same file downloads fine
+  elsewhere. compile.sh therefore keeps the zip it already downloaded
+  and hash-verified, and rewrites the generated wrapper's
+  distributionUrl to a file:// URL pointing at that local zip, so
+  ./gradlew never downloads. Do not re-add the `rm` of the zip or
+  remove that rewrite. The workflow also caches ~/.gradle/wrapper/dists
+  (actions/cache) so later runs reuse the populated distribution.
 - This is a debug build, not a signed release build.
 - A few bits still hardcode VLC orange; that is accepted, not a bug.
