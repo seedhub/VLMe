@@ -153,11 +153,17 @@ path, and whether it lives on internal storage or the SD card. Tap a
 folder to select it (the source file's parent is pre-selected), OK
 confirms it, and a "New folder" button creates a subfolder inside the
 selected folder (or the source parent when nothing is selected). The
-move itself is FileUtils.moveFile — a plain renameTo, so
-it only works between folders the app already has access to on the
-same storage; no copy-and-delete fallback. Refuse with a toast if the
+move itself is FileUtils.moveFile — try a plain renameTo first, and
+if the rename fails (it cannot cross filesystems, e.g. internal
+storage <-> SD card), fall back to copying the file and deleting the
+source; a partial copy is deleted and counts as a failure. Refuse
+with a toast if the
 destination is the source folder or a file with the same name already
-exists there. After a move, reload the source parent and destination
+exists there. The move must never fail silently: show a Moving toast
+when it starts, a Moved message on success (in the video grid a
+successful move is otherwise invisible — the video stays in the grid),
+and a write-access toast when the permission check blocks it instead
+of running the move. After a move, reload the source parent and destination
 folders in the medialibrary (Medialibrary.getInstance().reload) so the
 moved file shows up in its new place and not the old one.
 Files: gui/dialogs/MoveDestinationDialog.kt (+ dialog_move_destination.xml
