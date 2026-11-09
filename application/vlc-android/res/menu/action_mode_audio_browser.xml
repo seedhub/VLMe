@@ -43,6 +43,11 @@
             android:title="@string/delete"
             android:visible="false"
             app:showAsAction="ifRoom" />
+    <item
+            android:id="@+id/action_mode_audio_move"
+            android:icon="@drawable/ic_move_media"
+            android:title="@string/move_to"
+            app:showAsAction="never" />
     <group android:id="@+id/phone_only">
         <item
                 android:id="@+id/action_mode_audio_set_song"
