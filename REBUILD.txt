@@ -169,20 +169,26 @@ phone):
   audio kept playing but the video came back black, in the PiP window
   and after expanding to the full player (the MediaPlayer.Event.Vout ->
   updateVideoSurfaces() path cannot help: with no views attached there
-  is no vout to fire the event). Fix: at the end of onResume(), if the
-  service is playing and the views are not attached, re-attach them
-  with the same call startPlayback makes
+  is no vout to fire the event). Fix: if the service is playing and
+  the views are not attached, re-attach them with the same call
+  startPlayback makes
   (mediaplayer.attachViews(videoLayout, displayManager, true, false)),
   guarded by areViewsAttached() so it is a no-op whenever the views are
-  already attached. Do not restrict the guard to PiP mode: the expand
-  case resumes the activity outside PiP and needs the same re-attach.
-  Attaching alone is not enough in the PiP window: after attachViews,
-  also call mediaplayer.updateVideoSurfaces() to bind the surface —
-  without it the PiP video stays black after screen-on even though the
-  views are attached again. That call is exactly what restores the
-  picture when expanding out of PiP (onPictureInPictureModeChanged
-  calls it), so the screen-on path now does the same two steps the
-  expand path does.
+  already attached, and then call mediaplayer.updateVideoSurfaces() to
+  bind the surface — attaching alone is not enough in the PiP window.
+  Do not restrict the guard to PiP mode: the expand case resumes the
+  activity outside PiP and needs the same re-attach. That call is
+  exactly what restores the picture when expanding out of PiP
+  (onPictureInPictureModeChanged calls it), so the screen-on path must
+  do the same two steps. CRITICAL: do this from onStart(), not only
+  from onResume(). A PiP activity stays paused — it never regains focus
+  while it is in the PiP window, and the lock screen holds focus when
+  the screen comes back on — so onResume() does not fire on screen-on
+  in PiP. The re-attach sat in onResume() through two builds and the
+  PiP video stayed black both times; expanding restored it only because
+  leaving PiP resumes the activity. onStart() fires on the way back
+  from stopped, paused or not. Keep the onResume() call as a safety
+  net for the expand case.
 - onPause() is already PiP-safe (it checks isInPictureInPictureMode),
   so no change is needed there. isSystemPip is already computed in
   onStop() as isInPiPMode && !isPlayingPopup (isPlayingPopup means the

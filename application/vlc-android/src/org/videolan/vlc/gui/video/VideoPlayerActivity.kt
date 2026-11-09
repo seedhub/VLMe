@@ -762,19 +762,37 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
             handler.sendEmptyMessage(it)
         }
 
-        // VLMe: onStop() detaches the video views (cleanUI) — e.g. when the
-        // screen turns off in system PiP mode, where playback now keeps going
-        // audio-only. Nothing re-attached them on the way back, so the video
-        // stayed black in the PiP window and after expanding to the full
-        // player (the MediaPlayer.Event.Vout -> updateVideoSurfaces() path
-        // cannot help: with no views attached there is no vout to fire the
-        // event). Re-attach here, the same call startPlayback makes, and
-        // then bind the surface with updateVideoSurfaces(): attaching the
-        // views alone leaves the video black in the PiP window — the
-        // surface is only bound when updateVideoSurfaces() runs, which is
-        // exactly what restores the picture when expanding out of PiP
-        // (onPictureInPictureModeChanged calls it). The guard keeps this a
-        // no-op whenever the views are already attached.
+        // VLMe: re-attach the video views if onStop() detached them (see
+        // reattachVideoViewsIfNeeded). Called from onResume as a safety net.
+        reattachVideoViewsIfNeeded()
+    }
+
+    // VLMe: onStop() detaches the video views (cleanUI) — e.g. when the
+    // screen turns off in system PiP mode, where playback now keeps going
+    // audio-only. Nothing re-attached them on the way back, so the video
+    // stayed black in the PiP window and after expanding to the full
+    // player (the MediaPlayer.Event.Vout -> updateVideoSurfaces() path
+    // cannot help: with no views attached there is no vout to fire the
+    // event). Re-attach here, the same call startPlayback makes, and then
+    // bind the surface with updateVideoSurfaces(): attaching the views
+    // alone leaves the video black in the PiP window — the surface is
+    // only bound when updateVideoSurfaces() runs, which is exactly what
+    // restores the picture when expanding out of PiP
+    // (onPictureInPictureModeChanged calls it). The guard keeps this a
+    // no-op whenever the views are already attached.
+    //
+    // This must be called from onStart(), NOT only from onResume():
+    // a PiP activity stays paused — it never regains focus while it is
+    // in the PiP window, and the lock screen holds focus when the screen
+    // comes back on — so onResume() does not fire on screen-on in PiP
+    // (runs #41/#42 put this in onResume only, and the PiP video stayed
+    // black; expanding restored it because leaving PiP resumes the
+    // activity). onStart() does fire on the way back from stopped,
+    // paused or not. The onResume() call is kept as a safety net for the
+    // expand case. The service field survives the stop/start cycle
+    // (onServiceChanged only clears it if the flow emits null), so it is
+    // available in onStart().
+    private fun reattachVideoViewsIfNeeded() {
         service?.run {
             val vlcVout = vout
             if (isPlaying && vlcVout != null && !vlcVout.areViewsAttached()
@@ -1012,6 +1030,9 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         btFilter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
         registerReceiver(btReceiver, btFilter)
         overlayDelegate.overlayInfo.setInvisible()
+        // VLMe: re-attach the video views if onStop() detached them while
+        // the screen was off in PiP (see reattachVideoViewsIfNeeded).
+        reattachVideoViewsIfNeeded()
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
