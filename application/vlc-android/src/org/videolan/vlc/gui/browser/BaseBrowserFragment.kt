@@ -31,6 +31,7 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
 import android.view.ViewGroup
 import androidx.appcompat.view.ActionMode
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -339,6 +340,7 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
             if (wrappers.isEmpty()) return@setFragmentResultListener
             val destDir = File(destPath)
             val moveAction = Runnable {
+                Toast.makeText(requireActivity(), R.string.msg_moving, Toast.LENGTH_SHORT).show()
                 lifecycleScope.launch(Dispatchers.IO) {
                     val parentsToReload = mutableSetOf<String>()
                     val moved = ArrayList<MediaWrapper>()
@@ -356,6 +358,7 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                     val failedItem = failed
                     withContext(Dispatchers.Main) {
                         failedItem?.let { UiTools.snacker(requireActivity(), getString(R.string.msg_move_failed, it.title)) }
+                        if (failedItem == null && moved.isNotEmpty()) UiTools.snacker(requireActivity(), getString(R.string.msg_move_done, moved.size))
                         viewModel.refresh()
                         if (moved.isNotEmpty() && this@BaseBrowserFragment is FileBrowserFragment) {
                             moved.forEach { viewModel.remove(it) }
@@ -364,6 +367,7 @@ abstract class BaseBrowserFragment : MediaBrowserFragment<BrowserModel>(), IRefr
                 }
             }
             if (Permissions.checkWritePermission(requireActivity(), wrappers[0], moveAction)) moveAction.run()
+            else Toast.makeText(requireActivity(), R.string.msg_move_needs_permission, Toast.LENGTH_LONG).show()
         }
         lifecycleScope.launch {
             PlaylistManager.shuffling.collect {

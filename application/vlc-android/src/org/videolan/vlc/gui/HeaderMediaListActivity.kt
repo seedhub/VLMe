@@ -32,6 +32,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.view.ActionMode
 import androidx.appcompat.widget.SearchView
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -334,12 +335,15 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
             if (wrappers.isEmpty()) return@setFragmentResultListener
             val destDir = File(destPath)
             val moveAction = kotlinx.coroutines.Runnable {
+                Toast.makeText(this@HeaderMediaListActivity, R.string.msg_moving, Toast.LENGTH_SHORT).show()
                 lifecycleScope.launch(Dispatchers.IO) {
                     val parentsToReload = mutableSetOf<String>()
                     var failed: MediaWrapper? = null
+                    var movedCount = 0
                     for (mw in wrappers) {
                         val src = mw.uri.path?.let { File(it) } ?: continue
                         if (FileUtils.moveFile(src, destDir)) {
+                            movedCount++
                             src.parent?.let { parentsToReload.add(it) }
                             parentsToReload.add(destPath)
                         } else if (failed == null) failed = mw
@@ -347,13 +351,16 @@ open class HeaderMediaListActivity : AudioPlayerContainerActivity(), IEventsHand
                     val medialibrary = Medialibrary.getInstance()
                     for (folder in parentsToReload) medialibrary.reload(folder)
                     val failedItem = failed
+                    val moved = movedCount
                     withContext(Dispatchers.Main) {
                         failedItem?.let { UiTools.snacker(this@HeaderMediaListActivity, getString(R.string.msg_move_failed, it.title)) }
+                        if (failedItem == null && moved > 0) UiTools.snacker(this@HeaderMediaListActivity, getString(R.string.msg_move_done, moved))
                         if (isStarted()) viewModel.refresh()
                     }
                 }
             }
             if (Permissions.checkWritePermission(this@HeaderMediaListActivity, wrappers[0], moveAction)) moveAction.run()
+            else Toast.makeText(this@HeaderMediaListActivity, R.string.msg_move_needs_permission, Toast.LENGTH_LONG).show()
         }
     }
 
