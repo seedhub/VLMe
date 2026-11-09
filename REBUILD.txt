@@ -140,6 +140,31 @@ Push to master and wait for the GitHub Actions run "Build VLMe debug APK"
 to go green. Download the VLMe-debug-apk artifact, verify its SHA-256,
 and confirm the APK installs before calling the step done.
 
+Prompt 11 — Move files between folders (Simple Gallery-style picker)
+----------------------------------------------------------------------
+Add a "Move to…" action for files in the file browser only (long-press
+menu and multi-select bar; never for folders). It opens a
+"Select destination" bottom sheet modeled on Simple Gallery's
+PickDirectoryDialog/FilePickerDialog: breadcrumb path bar on top,
+subfolders of the current folder to tap into, a "New folder" button,
+OK to confirm the folder shown, back goes up one folder. It starts at
+the source file's parent folder and never navigates above internal
+storage. The move itself is FileUtils.moveFile — a plain renameTo, so
+it only works between folders the app already has access to on the
+same storage; no copy-and-delete fallback. Refuse with a toast if the
+destination is the source folder or a file with the same name already
+exists there. After a move, reload the source parent and destination
+folders in the medialibrary (Medialibrary.getInstance().reload) so the
+moved file shows up in its new place and not the old one.
+Files: gui/dialogs/MoveDestinationDialog.kt (+ dialog_move_destination.xml
+and item_move_destination_folder.xml layouts), FileUtils.moveFile,
+CTX_MOVE in ContextOption.kt + ContextSheet.kt, menu entry in
+BaseBrowserFragment.kt (context menu + action mode) with the actual
+move in its MOVE_DESTINATION_DIALOG_RESULT listener, moveItems() in
+MediaBrowserFragment.kt, action_mode_file_move in
+action_mode_browser_file.xml (ic_move_media icon), strings in
+application/resources strings.xml.
+
 Verification (after every prompt)
 ----------------------------------
 - The CI run for the change is green.

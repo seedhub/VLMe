@@ -55,6 +55,7 @@ import org.videolan.vlc.gui.dialogs.CONFIRM_DELETE_DIALOG_RESULT_BAN_FOLDER
 import org.videolan.vlc.gui.dialogs.CONFIRM_DELETE_DIALOG_RESULT_DEFAULT_VALUE
 import org.videolan.vlc.gui.dialogs.CONFIRM_DELETE_DIALOG_RESULT_TYPE
 import org.videolan.vlc.gui.dialogs.ConfirmDeleteDialog
+import org.videolan.vlc.gui.dialogs.MoveDestinationDialog
 import org.videolan.vlc.gui.helpers.MedialibraryUtils
 import org.videolan.vlc.gui.helpers.UiTools
 import org.videolan.vlc.gui.helpers.fillActionMode
@@ -210,6 +211,14 @@ abstract class MediaBrowserFragment<T : SortableModel> : BaseFragment(), Filtera
         }
         val dialog = ConfirmDeleteDialog.newInstance(ArrayList(items))
         dialog.show(requireActivity().supportFragmentManager, ConfirmDeleteDialog::class.simpleName)
+    }
+
+    protected open fun moveItems(items: List<MediaLibraryItem>) {
+        val files = items.filterIsInstance<MediaWrapper>()
+                .filter { it.type != MediaWrapper.TYPE_DIR && it.uri.scheme == "file" }
+        if (files.isEmpty()) return
+        val dialog = MoveDestinationDialog.newInstance(ArrayList(files))
+        dialog.show(requireActivity().supportFragmentManager, MoveDestinationDialog::class.simpleName)
     }
 
     protected open fun removeItem(item: MediaLibraryItem): Boolean {

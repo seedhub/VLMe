@@ -45,6 +45,7 @@ enum class ContextOption : Flag {
     CTX_MARK_ALL_AS_UNPLAYED,
     CTX_MARK_AS_PLAYED,
     CTX_MARK_AS_UNPLAYED,
+    CTX_MOVE,
     CTX_PLAY,
     CTX_PLAY_ALL,
     CTX_PLAY_AS_AUDIO,

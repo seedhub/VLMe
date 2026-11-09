@@ -874,6 +874,13 @@
     <string name="time_category_older">Older media</string>
     <string name="rename">Rename</string>
     <string name="rename_media">Rename %1$s</string>
+    <string name="move_to">Move to…</string>
+    <string name="select_destination">Select destination</string>
+    <string name="new_folder">New folder</string>
+    <string name="no_subfolders">No subfolders</string>
+    <string name="msg_move_failed">Couldn\'t move %1$s</string>
+    <string name="move_same_folder">Source and destination are the same folder</string>
+    <string name="move_file_exists">A file with this name already exists in the destination folder</string>
     <string name="manual_search">Manual search</string>
     <string name="subtitle_search_name_hint">Name</string>
     <string name="subtitle_query_edit">Edit subtitle search query</string>

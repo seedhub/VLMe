@@ -262,6 +262,25 @@ object FileUtils {
         return ret
     }
 
+    /**
+     * Move a file to another folder on the same storage. This is a plain
+     * rename: it only works when source and destination are on the same
+     * filesystem, and it fails if a file with the same name already exists
+     * in the destination folder. Cross-storage moves are not attempted.
+     */
+    @WorkerThread
+    fun moveFile(src: File, destDir: File): Boolean {
+        if (!src.isFile || !destDir.isDirectory) return false
+        val dest = File(destDir, src.name)
+        if (dest.exists()) return false
+        return try {
+            src.renameTo(dest)
+        } catch (e: SecurityException) {
+            Log.e(TAG, e.message, e)
+            false
+        }
+    }
+
     @WorkerThread
     fun deleteFile(uri: Uri): Boolean {
         if (isExternalStorageManager() || !VlcMigrationHelper.isLolliPopOrLater || uri.path!!.startsWith(AndroidDevices.EXTERNAL_PUBLIC_DIRECTORY)) return deleteFile(uri.path)
