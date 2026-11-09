@@ -142,8 +142,9 @@ and confirm the APK installs before calling the step done.
 
 Prompt 11 — Move files between folders (Simple Gallery-style picker)
 ----------------------------------------------------------------------
-Add a "Move to…" action for files in the file browser only (long-press
-menu and multi-select bar; never for folders). It opens a
+Add a "Move to…" action for files in the file browser, the video grid,
+and the audio lists (long-press menu and multi-select bar; never for
+folders). It opens a
 "Select destination" bottom sheet modeled on Simple Gallery's
 PickDirectoryDialog/FilePickerDialog: breadcrumb path bar on top,
 subfolders of the current folder to tap into, a "New folder" button,
@@ -163,7 +164,15 @@ BaseBrowserFragment.kt (context menu + action mode) with the actual
 move in its MOVE_DESTINATION_DIALOG_RESULT listener, moveItems() in
 MediaBrowserFragment.kt, action_mode_file_move in
 action_mode_browser_file.xml (ic_move_media icon), strings in
-application/resources strings.xml.
+application/resources strings.xml. Video grid: CTX_MOVE in the video
+context flags (local files only) and action_video_move in
+action_mode_video.xml, both in VideoGridFragment.kt. Audio tab: CTX_MOVE
+in BaseAudioBrowser.kt (track context flags + action mode, shown only
+for media selections) and action_mode_audio_move in the shared
+action_mode_audio_browser.xml. Album/track lists: HeaderMediaListActivity
+is an Activity, not a browser fragment, so it needs its own moveItems()
+and MOVE_DESTINATION_DIALOG_RESULT listener (same move + reload +
+refresh) alongside the same shared audio menu item.
 
 Verification (after every prompt)
 ----------------------------------
