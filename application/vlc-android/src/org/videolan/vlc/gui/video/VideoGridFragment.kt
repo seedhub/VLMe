@@ -137,6 +137,7 @@ import org.videolan.vlc.util.ContextOption.CTX_MARK_ALL_AS_PLAYED
 import org.videolan.vlc.util.ContextOption.CTX_MARK_ALL_AS_UNPLAYED
 import org.videolan.vlc.util.ContextOption.CTX_MARK_AS_PLAYED
 import org.videolan.vlc.util.ContextOption.CTX_MARK_AS_UNPLAYED
+import org.videolan.vlc.util.ContextOption.CTX_MOVE
 import org.videolan.vlc.util.ContextOption.CTX_PLAY
 import org.videolan.vlc.util.ContextOption.CTX_PLAY_ALL
 import org.videolan.vlc.util.ContextOption.CTX_PLAY_AS_AUDIO
@@ -544,6 +545,7 @@ class VideoGridFragment : MediaBrowserFragment<VideosViewModel>(), SwipeRefreshL
                         }
                         R.id.action_mode_audio_add_playlist -> requireActivity().addToPlaylist(list)
                         R.id.action_video_delete -> removeItems(list)
+                        R.id.action_video_move -> moveItems(list)
                         R.id.action_remove_from_group -> viewModel.removeFromGroup(list)
                         R.id.action_ungroup -> viewModel.ungroup(list)
                         R.id.action_add_to_group -> addToGroup(list)
@@ -621,6 +623,7 @@ class VideoGridFragment : MediaBrowserFragment<VideosViewModel>(), SwipeRefreshL
                 CTX_PLAY -> viewModel.play(position)
                 CTX_INFORMATION -> showInfoDialog(media)
                 CTX_DELETE -> removeItem(media)
+                CTX_MOVE -> moveItems(listOf(media))
                 CTX_APPEND -> MediaUtils.appendMedia(activity, media)
                 CTX_SET_RINGTONE -> requireActivity().setRingtone(media)
                 CTX_PLAY_NEXT -> MediaUtils.insertNext(requireActivity(), media.tracks)
@@ -734,6 +737,8 @@ class VideoGridFragment : MediaBrowserFragment<VideosViewModel>(), SwipeRefreshL
                             }
                             //go to folder
                             if (item.uri.retrieveParent() != null) add(CTX_GO_TO_FOLDER)
+                            //move to another folder (local files only)
+                            if (item.uri.scheme == "file") add(CTX_MOVE)
                         }
                         showContext(requireActivity(), this@VideoGridFragment, position, item, flags)
                     }
