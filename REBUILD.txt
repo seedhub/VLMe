@@ -228,6 +228,18 @@ phone):
   unused) and keep the receiver re-attach. If it still does not, the
   hook/timing is ruled out and the PiP surface itself is the suspect
   (recreate it, or retry the re-attach after a short delay).
+- Build #45's Toast never showed either, and the video stayed black.
+  Two suspects: the receiver's isInPictureInPictureMode guard (the
+  activity may not report PiP mode at the instant the screen turns
+  on), or the phone is running an older build (the launcher label
+  still says VLC, so the fork is indistinguishable from the old app).
+  Fix both: drop the PiP-mode guard from the receiver (the isPlaying
+  check already scopes it — in the full player the screen turning off
+  stops playback, so isPlaying is false on screen-on there), and
+  rename the app to VLMe (app_name string, "VLC" -> "VLMe") so the
+  launcher label itself proves which build is installed. If this
+  build's Toast still never shows, the phone is almost certainly
+  running a stale build — check the launcher label first.
 
 Legacy PopupManager path (PopupManager, service-owned overlay):
 - When the screen turns off, the pop-up's SurfaceView surface

@@ -354,11 +354,15 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     // reports interactive). Same pattern the legacy PopupManager uses
     // for its screen-on re-attach. Registered in onCreate so it is
     // active while the activity is stopped in PiP; unregistered in
-    // onDestroy.
+    // onDestroy. NOTE: do NOT gate this on isInPictureInPictureMode —
+    // the activity may not report PiP mode at the instant the screen
+    // turns on (run #45's Toast never showed with that guard in place,
+    // and the isPlaying check already scopes this to the PiP case:
+    // in the full player the screen turning off stops playback, so
+    // isPlaying is false on screen-on there).
     private val screenOnReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != Intent.ACTION_SCREEN_ON) return
-            if (!isInPictureInPictureMode) return
             val svc = PlaybackService.instance ?: service ?: return
             if (!svc.isPlaying || displayManager.isOnRenderer) return
             val wasAttached = svc.vout?.areViewsAttached() ?: false
