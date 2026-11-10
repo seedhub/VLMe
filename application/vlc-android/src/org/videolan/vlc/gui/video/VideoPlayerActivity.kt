@@ -338,6 +338,10 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
      */
     private var playbackStarted = false
 
+    // VLMe: set in onStop() when the activity stops with the screen off
+    // (diagnostic for the PiP screen-on black video; see onStart()).
+    private var stoppedWithScreenOff = false
+
     // Navigation handling (DVD, Blu-Ray...)
     var menuIdx = -1
     var isNavMenu = false
@@ -1030,14 +1034,44 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         btFilter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
         registerReceiver(btReceiver, btFilter)
         overlayDelegate.overlayInfo.setInvisible()
-        // VLMe: re-attach the video views if onStop() detached them while
-        // the screen was off in PiP (see reattachVideoViewsIfNeeded).
-        reattachVideoViewsIfNeeded()
+        // VLMe: if the last stop happened with the screen off (PiP), force
+        // a clean re-attach of the video views. The guarded re-attach in
+        // reattachVideoViewsIfNeeded() did not restore the PiP picture
+        // through three builds — either the guard (areViewsAttached())
+        // was already true so it never ran, or the PiP surface itself
+        // needs a fresh attach. Detaching first and re-attaching
+        // unconditionally covers both. The Toast is a temporary
+        // diagnostic: it proves this path ran on screen-on and shows what
+        // the guard saw (attached=) before the forced re-attach. Remove
+        // the Toast once the picture comes back.
+        if (stoppedWithScreenOff) {
+            stoppedWithScreenOff = false
+            service?.run {
+                if (isPlaying && !displayManager.isOnRenderer) {
+                    val wasAttached = vout?.areViewsAttached() ?: false
+                    Toast.makeText(this@VideoPlayerActivity,
+                        "VLMe dbg: screenOff stop, playing=$isPlaying, attached=$wasAttached",
+                        Toast.LENGTH_LONG).show()
+                    mediaplayer.detachViews()
+                    videoLayout?.let {
+                        mediaplayer.attachViews(it, displayManager, true, false)
+                        mediaplayer.updateVideoSurfaces()
+                    }
+                }
+            }
+        } else {
+            // VLMe: re-attach the video views if onStop() detached them
+            // (see reattachVideoViewsIfNeeded).
+            reattachVideoViewsIfNeeded()
+        }
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
     override fun onStop() {
         super.onStop()
+        // VLMe: remember whether this stop happened with the screen off,
+        // so onStart() knows the video needs a forced re-attach.
+        stoppedWithScreenOff = !isInteractive
         service?.playlistManager?.let {
             savedMediaList = ArrayList(it.getMediaList())
             savedMediaIndex = it.currentIndex

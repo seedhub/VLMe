@@ -193,6 +193,24 @@ phone):
   so no change is needed there. isSystemPip is already computed in
   onStop() as isInPiPMode && !isPlayingPopup (isPlayingPopup means the
   legacy overlay is active).
+- The onStart() re-attach did not restore the PiP picture either
+  (build #43): the picture still stayed black in the pop-up on
+  screen-on, while expanding kept restoring it. Two suspects remain:
+  either the guard (areViewsAttached()) is already true on screen-on
+  so the guarded re-attach never runs, or the PiP surface itself needs
+  a fresh attach. Diagnostic build: onStop() records
+  stoppedWithScreenOff = !isInteractive; onStart(), when that flag is
+  set and the service is playing, detaches the views outright
+  (mediaplayer.detachViews()) and re-attaches them unconditionally,
+  then calls updateVideoSurfaces(), and shows a temporary Toast
+  ("VLMe dbg: screenOff stop, playing=..., attached=...") proving the
+  path ran and what the guard saw. If the picture comes back, remove
+  the Toast and keep the forced re-attach (scoped to screen-off stops
+  only, so normal resumes never flicker). If it still does not, the
+  next suspect is the PiP surface itself: the surface may need to be
+  recreated (e.g. toggling the video layout visibility), or the
+  re-attach may need to wait until the surface exists (delayed retry
+  or a surface callback).
 
 Legacy PopupManager path (PopupManager, service-owned overlay):
 - When the screen turns off, the pop-up's SurfaceView surface
