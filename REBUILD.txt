@@ -211,6 +211,23 @@ phone):
   recreated (e.g. toggling the video layout visibility), or the
   re-attach may need to wait until the surface exists (delayed retry
   or a surface callback).
+- Build #44's Toast never showed: the flag was never set, so onStop()
+  runs while the screen still reports interactive (isInteractive is
+  racy as a screen-off signal). Next diagnostic: a BroadcastReceiver
+  for ACTION_SCREEN_ON registered in onCreate (registerReceiverCompat,
+  not exported; unregistered in onDestroy), the same pattern the
+  legacy PopupManager uses. On screen-on, if the activity is in PiP
+  mode and the service (PlaybackService.instance, falling back to the
+  activity's service field) is playing and not on a renderer, it
+  detaches the views outright and re-attaches them unconditionally,
+  calls updateVideoSurfaces(), and shows a temporary Toast
+  ("VLMe dbg: screenOn Rx, playing=..., attached=..."). The message is
+  also stored and re-shown in onResume() (screenOnDiag), so it is
+  still seen if it fired while the lock screen was up. If the picture
+  comes back, remove both Toasts (and the flag path if it stays
+  unused) and keep the receiver re-attach. If it still does not, the
+  hook/timing is ruled out and the PiP surface itself is the suspect
+  (recreate it, or retry the re-attach after a short delay).
 
 Legacy PopupManager path (PopupManager, service-owned overlay):
 - When the screen turns off, the pop-up's SurfaceView surface

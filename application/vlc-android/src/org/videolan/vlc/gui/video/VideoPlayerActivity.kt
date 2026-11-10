@@ -139,6 +139,7 @@ import org.videolan.resources.TV_AUDIOPLAYER_ACTIVITY
 import org.videolan.resources.buildPkgString
 import org.videolan.resources.util.parcelable
 import org.videolan.resources.util.parcelableList
+import org.videolan.resources.util.registerReceiverCompat
 import org.videolan.tools.BRIGHTNESS_VALUE
 import org.videolan.tools.DISPLAY_UNDER_NOTCH
 import org.videolan.tools.ENABLE_BRIGHTNESS_GESTURE
@@ -341,6 +342,36 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     // VLMe: set in onStop() when the activity stops with the screen off
     // (diagnostic for the PiP screen-on black video; see onStart()).
     private var stoppedWithScreenOff = false
+
+    // VLMe: last screen-on diagnostic message, re-shown in onResume()
+    // (the Toast may fire while the lock screen is up and be missed).
+    private var screenOnDiag: String? = null
+
+    // VLMe: fires at the true screen-on moment, independent of the
+    // activity lifecycle and of the isInteractive timing in onStop()
+    // (the onStart() flag path in run #44 never showed its Toast, so
+    // the flag was never set — onStop() runs while the screen still
+    // reports interactive). Same pattern the legacy PopupManager uses
+    // for its screen-on re-attach. Registered in onCreate so it is
+    // active while the activity is stopped in PiP; unregistered in
+    // onDestroy.
+    private val screenOnReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != Intent.ACTION_SCREEN_ON) return
+            if (!isInPictureInPictureMode) return
+            val svc = PlaybackService.instance ?: service ?: return
+            if (!svc.isPlaying || displayManager.isOnRenderer) return
+            val wasAttached = svc.vout?.areViewsAttached() ?: false
+            val msg = "VLMe dbg: screenOn Rx, playing=${svc.isPlaying}, attached=$wasAttached"
+            screenOnDiag = msg
+            Toast.makeText(this@VideoPlayerActivity, msg, Toast.LENGTH_LONG).show()
+            svc.mediaplayer.detachViews()
+            videoLayout?.let {
+                svc.mediaplayer.attachViews(it, displayManager, true, false)
+                svc.mediaplayer.updateVideoSurfaces()
+            }
+        }
+    }
 
     // Navigation handling (DVD, Blu-Ray...)
     var menuIdx = -1
@@ -549,6 +580,11 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         enableCloneMode = clone ?: settings.getBoolean(KEY_ENABLE_CLONE_MODE, false)
         displayManager = DisplayManager(this, PlaybackService.renderer, false, enableCloneMode, isBenchmark)
         setContentView(if (displayManager.isPrimary) R.layout.player else R.layout.player_remote_control)
+
+        // VLMe: screen-on receiver for the PiP video resume (see
+        // screenOnReceiver). Registered early so it is active for the
+        // activity's whole lifetime, including while stopped in PiP.
+        registerReceiverCompat(screenOnReceiver, IntentFilter(Intent.ACTION_SCREEN_ON), false)
 
 
         rootView = findViewById(R.id.player_root)
@@ -769,6 +805,12 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         // VLMe: re-attach the video views if onStop() detached them (see
         // reattachVideoViewsIfNeeded). Called from onResume as a safety net.
         reattachVideoViewsIfNeeded()
+        // VLMe: re-show the screen-on diagnostic (it may have fired while
+        // the lock screen was up and been missed).
+        screenOnDiag?.let {
+            Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+            screenOnDiag = null
+        }
     }
 
     // VLMe: onStop() detaches the video views (cleanUI) — e.g. when the
@@ -1138,6 +1180,11 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
 
     override fun onDestroy() {
         super.onDestroy()
+        // VLMe: unregister the screen-on receiver (see screenOnReceiver).
+        try {
+            unregisterReceiver(screenOnReceiver)
+        } catch (ignored: IllegalArgumentException) {
+        }
         playlistModel?.run {
             dataset.removeObserver(playlistObserver)
             onCleared()
