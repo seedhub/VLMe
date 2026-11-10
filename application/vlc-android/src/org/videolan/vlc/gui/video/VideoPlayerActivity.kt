@@ -339,36 +339,26 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
      */
     private var playbackStarted = false
 
-    // VLMe: set in onStop() when the activity stops with the screen off
-    // (diagnostic for the PiP screen-on black video; see onStart()).
-    private var stoppedWithScreenOff = false
-
-    // VLMe: last screen-on diagnostic message, re-shown in onResume()
-    // (the Toast may fire while the lock screen is up and be missed).
-    private var screenOnDiag: String? = null
-
-    // VLMe: fires at the true screen-on moment, independent of the
-    // activity lifecycle and of the isInteractive timing in onStop()
-    // (the onStart() flag path in run #44 never showed its Toast, so
-    // the flag was never set — onStop() runs while the screen still
-    // reports interactive). Same pattern the legacy PopupManager uses
-    // for its screen-on re-attach. Registered in onCreate so it is
-    // active while the activity is stopped in PiP; unregistered in
-    // onDestroy. NOTE: do NOT gate this on isInPictureInPictureMode —
-    // the activity may not report PiP mode at the instant the screen
-    // turns on (run #45's Toast never showed with that guard in place,
-    // and the isPlaying check already scopes this to the PiP case:
-    // in the full player the screen turning off stops playback, so
-    // isPlaying is false on screen-on there).
+    // VLMe: fires at the true screen-on moment and re-attaches the
+    // video views in system PiP mode. onStop() detaches the views
+    // (cleanUI) when the screen turns off, and neither onResume() nor
+    // onStart() restores them in PiP — a PiP activity stays paused and
+    // never gets onResume() on screen-on, and the isInteractive flag
+    // in onStop() never gets set — so the picture stayed black through
+    // runs #41-#45. Same pattern the legacy PopupManager uses for its
+    // screen-on re-attach. Registered in onCreate so it is active
+    // while the activity is stopped in PiP; unregistered in onDestroy.
+    // Do NOT gate this on isInPictureInPictureMode — the activity may
+    // not report PiP mode at the instant the screen turns on (run #45
+    // never fired with that guard in place); the isPlaying check
+    // already scopes this to the PiP case, since in the full player
+    // the screen turning off stops playback, so isPlaying is false on
+    // screen-on there.
     private val screenOnReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != Intent.ACTION_SCREEN_ON) return
             val svc = PlaybackService.instance ?: service ?: return
             if (!svc.isPlaying || displayManager.isOnRenderer) return
-            val wasAttached = svc.vout?.areViewsAttached() ?: false
-            val msg = "VLMe dbg: screenOn Rx, playing=${svc.isPlaying}, attached=$wasAttached"
-            screenOnDiag = msg
-            Toast.makeText(this@VideoPlayerActivity, msg, Toast.LENGTH_LONG).show()
             svc.mediaplayer.detachViews()
             videoLayout?.let {
                 svc.mediaplayer.attachViews(it, displayManager, true, false)
@@ -809,12 +799,6 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         // VLMe: re-attach the video views if onStop() detached them (see
         // reattachVideoViewsIfNeeded). Called from onResume as a safety net.
         reattachVideoViewsIfNeeded()
-        // VLMe: re-show the screen-on diagnostic (it may have fired while
-        // the lock screen was up and been missed).
-        screenOnDiag?.let {
-            Toast.makeText(this, it, Toast.LENGTH_LONG).show()
-            screenOnDiag = null
-        }
     }
 
     // VLMe: onStop() detaches the video views (cleanUI) — e.g. when the
@@ -1080,44 +1064,15 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         btFilter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
         registerReceiver(btReceiver, btFilter)
         overlayDelegate.overlayInfo.setInvisible()
-        // VLMe: if the last stop happened with the screen off (PiP), force
-        // a clean re-attach of the video views. The guarded re-attach in
-        // reattachVideoViewsIfNeeded() did not restore the PiP picture
-        // through three builds — either the guard (areViewsAttached())
-        // was already true so it never ran, or the PiP surface itself
-        // needs a fresh attach. Detaching first and re-attaching
-        // unconditionally covers both. The Toast is a temporary
-        // diagnostic: it proves this path ran on screen-on and shows what
-        // the guard saw (attached=) before the forced re-attach. Remove
-        // the Toast once the picture comes back.
-        if (stoppedWithScreenOff) {
-            stoppedWithScreenOff = false
-            service?.run {
-                if (isPlaying && !displayManager.isOnRenderer) {
-                    val wasAttached = vout?.areViewsAttached() ?: false
-                    Toast.makeText(this@VideoPlayerActivity,
-                        "VLMe dbg: screenOff stop, playing=$isPlaying, attached=$wasAttached",
-                        Toast.LENGTH_LONG).show()
-                    mediaplayer.detachViews()
-                    videoLayout?.let {
-                        mediaplayer.attachViews(it, displayManager, true, false)
-                        mediaplayer.updateVideoSurfaces()
-                    }
-                }
-            }
-        } else {
-            // VLMe: re-attach the video views if onStop() detached them
-            // (see reattachVideoViewsIfNeeded).
-            reattachVideoViewsIfNeeded()
-        }
+        // VLMe: re-attach the video views if onStop() detached them
+        // (see reattachVideoViewsIfNeeded). The screen-on case itself
+        // is handled by screenOnReceiver, not here.
+        reattachVideoViewsIfNeeded()
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
     override fun onStop() {
         super.onStop()
-        // VLMe: remember whether this stop happened with the screen off,
-        // so onStart() knows the video needs a forced re-attach.
-        stoppedWithScreenOff = !isInteractive
         service?.playlistManager?.let {
             savedMediaList = ArrayList(it.getMediaList())
             savedMediaIndex = it.currentIndex

@@ -195,51 +195,27 @@ phone):
   legacy overlay is active).
 - The onStart() re-attach did not restore the PiP picture either
   (build #43): the picture still stayed black in the pop-up on
-  screen-on, while expanding kept restoring it. Two suspects remain:
-  either the guard (areViewsAttached()) is already true on screen-on
-  so the guarded re-attach never runs, or the PiP surface itself needs
-  a fresh attach. Diagnostic build: onStop() records
-  stoppedWithScreenOff = !isInteractive; onStart(), when that flag is
-  set and the service is playing, detaches the views outright
-  (mediaplayer.detachViews()) and re-attaches them unconditionally,
-  then calls updateVideoSurfaces(), and shows a temporary Toast
-  ("VLMe dbg: screenOff stop, playing=..., attached=...") proving the
-  path ran and what the guard saw. If the picture comes back, remove
-  the Toast and keep the forced re-attach (scoped to screen-off stops
-  only, so normal resumes never flicker). If it still does not, the
-  next suspect is the PiP surface itself: the surface may need to be
-  recreated (e.g. toggling the video layout visibility), or the
-  re-attach may need to wait until the surface exists (delayed retry
-  or a surface callback).
-- Build #44's Toast never showed: the flag was never set, so onStop()
-  runs while the screen still reports interactive (isInteractive is
-  racy as a screen-off signal). Next diagnostic: a BroadcastReceiver
-  for ACTION_SCREEN_ON registered in onCreate (registerReceiverCompat,
+  screen-on, while expanding kept restoring it. The fix that finally
+  worked (build #46, confirmed on the phone): a BroadcastReceiver for
+  ACTION_SCREEN_ON registered in onCreate (registerReceiverCompat,
   not exported; unregistered in onDestroy), the same pattern the
-  legacy PopupManager uses. On screen-on, if the activity is in PiP
-  mode and the service (PlaybackService.instance, falling back to the
-  activity's service field) is playing and not on a renderer, it
-  detaches the views outright and re-attaches them unconditionally,
-  calls updateVideoSurfaces(), and shows a temporary Toast
-  ("VLMe dbg: screenOn Rx, playing=..., attached=..."). The message is
-  also stored and re-shown in onResume() (screenOnDiag), so it is
-  still seen if it fired while the lock screen was up. If the picture
-  comes back, remove both Toasts (and the flag path if it stays
-  unused) and keep the receiver re-attach. If it still does not, the
-  hook/timing is ruled out and the PiP surface itself is the suspect
-  (recreate it, or retry the re-attach after a short delay).
-- Build #45's Toast never showed either, and the video stayed black.
-  Two suspects: the receiver's isInPictureInPictureMode guard (the
-  activity may not report PiP mode at the instant the screen turns
-  on), or the phone is running an older build (the launcher label
-  still says VLC, so the fork is indistinguishable from the old app).
-  Fix both: drop the PiP-mode guard from the receiver (the isPlaying
-  check already scopes it — in the full player the screen turning off
-  stops playback, so isPlaying is false on screen-on there), and
-  rename the app to VLMe (app_name string, "VLC" -> "VLMe") so the
-  launcher label itself proves which build is installed. If this
-  build's Toast still never shows, the phone is almost certainly
-  running a stale build — check the launcher label first.
+  legacy PopupManager uses. On screen-on, if the service
+  (PlaybackService.instance, falling back to the activity's service
+  field) is playing and not on a renderer, it detaches the views
+  outright (mediaplayer.detachViews()) and re-attaches them
+  unconditionally, then calls updateVideoSurfaces(). Do NOT gate the
+  receiver on isInPictureInPictureMode — the activity may not report
+  PiP mode at the instant the screen turns on (build #45 never fired
+  with that guard in place); the isPlaying check already scopes it,
+  since in the full player the screen turning off stops playback, so
+  isPlaying is false on screen-on there. Do NOT move this back into
+  onResume() or onStart() and do NOT rely on isInteractive in onStop():
+  a PiP activity stays paused and never gets onResume() on screen-on
+  (runs #41/#42), and the isInteractive flag in onStop() never gets
+  set (run #44's diagnostic Toast never showed). The diagnostic Toasts
+  and the screen-off flag path were removed once the picture came back;
+  the receiver is the fix. The app is named VLMe (app_name string)
+  so the launcher label proves which build is installed.
 
 Legacy PopupManager path (PopupManager, service-owned overlay):
 - When the screen turns off, the pop-up's SurfaceView surface
