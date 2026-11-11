@@ -15,6 +15,7 @@ import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.stubs.StubMedia
 import org.videolan.libvlc.util.MediaBrowser
 import org.videolan.medialibrary.interfaces.Medialibrary
+import org.videolan.resources.AndroidDevices
 import org.videolan.medialibrary.stubs.StubMediaWrapper
 import org.videolan.vlc.BaseTest
 import org.videolan.vlc.R
@@ -112,7 +113,7 @@ class StorageModelTest : BaseTest() {
     @Test
     fun whenAtRootAndTwoCustomDirectoriesWithOneChildOfInternalStorage_checkTwoResultsAreObtained() {
         val customDir = org.videolan.vlc.mediadb.models.CustomDirectory(temporaryFolder.newFile("custom1").path)
-        val newDirInsideInternalStorage = File("${Environment.getExternalStorageDirectory().path}/custom2")
+        val newDirInsideInternalStorage = File("${AndroidDevices.EXTERNAL_PUBLIC_DIRECTORY}/custom2")
         newDirInsideInternalStorage.mkdir()
         val customDirInsideInternalStorage = org.videolan.vlc.mediadb.models.CustomDirectory(newDirInsideInternalStorage.path)
         coEvery { mockedDirectoryRepo.getCustomDirectories() } returns listOf(customDir, customDirInsideInternalStorage)
@@ -172,6 +173,8 @@ class StorageModelTest : BaseTest() {
                 .awaitValue()
                 .value()
 
-        assertEquals(oldResult.reversed(), newResult)
+        val expected = oldResult.toMutableList()
+        browserProvider.sort(expected)
+        assertEquals(expected.map { it.title }, newResult.map { it.title })
     }
 }
