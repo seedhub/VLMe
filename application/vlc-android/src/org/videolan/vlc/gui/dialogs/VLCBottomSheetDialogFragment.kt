@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import org.videolan.resources.AndroidDevices
 import org.videolan.tools.Settings
 import org.videolan.vlc.R
+import org.videolan.vlc.gui.helpers.AccentWidgets
 import org.videolan.vlc.gui.helpers.applyAccentOverlay
 import org.videolan.vlc.gui.video.VideoPlayerActivity.Companion.videoRemoteFlow
 import org.videolan.vlc.util.isTalkbackIsEnabled
@@ -65,6 +66,7 @@ abstract class VLCBottomSheetDialogFragment : BottomSheetDialogFragment() {
             }
         }
         super.onStart()
+        dialog?.window?.decorView?.let { AccentWidgets.tintTree(it) }
     }
 
     override fun onStop() {

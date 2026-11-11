@@ -11,6 +11,8 @@ import android.widget.Button
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.appcompat.app.BaseContextWrappingDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import androidx.core.view.ViewCompat
@@ -49,6 +51,10 @@ const val ONBOARDING_DONE_KEY = "app_onboarding_done"
 class OnboardingActivity : AppCompatActivity(), OnboardingFragmentListener {
     private lateinit var nextButton: Button
     private val viewModel: OnboardingViewModel by viewModels()
+    private var baseContextWrappingDelegate: AppCompatDelegate? = null
+
+    override fun getDelegate() = baseContextWrappingDelegate
+            ?: BaseContextWrappingDelegate(super.getDelegate()).apply { baseContextWrappingDelegate = this }
     override fun onCreate(savedInstanceState: Bundle?) {
         applyAccentOverlay()
         if (AndroidDevices.canUseSystemNightMode()) enableEdgeToEdge()

@@ -201,7 +201,8 @@ class AccentPaletteTest {
     fun themeEntryPointsUseTheSharedOverlay() {
         val styles = repoFile("application/vlc-android/res/values/styles.xml").readText()
         assertTrue(styles.contains("ThemeOverlay.VLMe.Accent.Runtime"))
-        assertTrue(styles.contains("colorOnPrimary\">@color/vlme_accent_on_primary"))
+        assertTrue(styles.contains("ThemeOverlay.VLMe.Accent.Blue.Night"))
+        assertTrue(styles.contains("colorOnPrimary\">#FF000000"))
         assertTrue(styles.contains("android:textColor\">?attr/colorOnPrimary"))
 
         val ui = repoFile("application/vlc-android/src/org/videolan/vlc/gui/helpers/UiTools.kt").readText()
@@ -216,6 +217,62 @@ class AccentPaletteTest {
         assertTrue(onboardingOnCreate.indexOf("applyAccentOverlay()") < onboardingOnCreate.indexOf("super.onCreate"))
         val prefs = repoFile("application/vlc-android/res/xml/preferences_ui.xml").readText()
         assertTrue(prefs.contains("cpv_allowCustom=\"true\""))
+        val overlay = repoFile("application/vlc-android/src/org/videolan/vlc/gui/helpers/AccentOverlay.kt").readText()
+        assertTrue(!overlay.contains("addAssetPath("))
+        assertTrue(!overlay.contains("VMRuntime"))
+        assertTrue(!overlay.contains("setHiddenApiExemptions"))
+        val presetBranch = overlay.substringAfter("val preset = presetStyle").substringBefore("val colors = buildAccentColors")
+        assertTrue(presetBranch.contains("theme.applyStyle(preset, true)"))
+        assertTrue(!presetBranch.contains("Accent_Runtime"))
+        val loader = repoFile("application/vlc-android/src/org/videolan/vlc/gui/helpers/AccentColorLoader.kt").readText()
+        assertTrue(!loader.contains("applicationContext"))
+        val widgets = repoFile("application/vlc-android/src/org/videolan/vlc/gui/helpers/AccentWidgets.kt").readText()
+        assertTrue(!widgets.contains("setOnHierarchyChangeListener"))
+    }
+
+    @Test
+    fun runtimeOverlayRequiresResolvedColorsAndSurfaceKey() {
+        val expected = buildAccentColors(PRESET_BLUE, intArrayOf(0xFF323232.toInt()))
+        assertTrue(!runtimeOverlayAccepted(29, expected.primary, expected.onPrimary, expected.primary, expected.onPrimary, expected))
+        assertTrue(runtimeOverlayAccepted(30, expected.primary, expected.onPrimary, expected.primary, expected.onPrimary, expected))
+        assertTrue(!runtimeOverlayAccepted(30, 0xFFFF610A.toInt(), 0xFFFFFFFF.toInt(), expected.primary, expected.onPrimary, expected))
+        assertTrue(!runtimeOverlayAccepted(30, expected.primary, expected.onPrimary, 0xFFFF610A.toInt(), expected.onPrimary, expected))
+        val day = paletteKey(PRESET_BLUE, intArrayOf(0xFFFFFFFF.toInt()))
+        val player = paletteKey(PRESET_BLUE, intArrayOf(0xFF323232.toInt(), 0xFF131313.toInt()))
+        assertTrue(day != player)
+        assertTrue(surfacesAreDark(intArrayOf(0xFF323232.toInt(), 0xFF131313.toInt())))
+        assertTrue(!surfacesAreDark(intArrayOf(0xFFFFFFFF.toInt())))
+    }
+
+    @Test
+    fun darkPresetStylesMatchPaletteOnRealSurfaces() {
+        val styles = repoFile("application/vlc-android/res/values/styles.xml").readText()
+        val surfaces = intArrayOf(0xFF323232.toInt(), 0xFF131313.toInt(), 0xFF2A2A2A.toInt())
+        val presets = listOf(
+                "Blue" to PRESET_BLUE,
+                "Green" to PRESET_GREEN,
+                "Red" to PRESET_RED,
+                "Purple" to PRESET_PURPLE,
+                "Teal" to PRESET_TEAL,
+                "Pink" to PRESET_PINK,
+        )
+        for ((name, seed) in presets) {
+            val colors = buildAccentColors(seed, surfaces)
+            val block = styles.substringAfter("ThemeOverlay.VLMe.Accent.$name.Night").substringBefore("</style>")
+            val primaryHex = "#${String.format("%08X", colors.primary.toLong() and 0xFFFFFFFFL)}"
+            val onHex = "#${String.format("%08X", colors.onPrimary.toLong() and 0xFFFFFFFFL)}"
+            assertTrue("$name $primaryHex", block.contains("colorPrimary\">$primaryHex"))
+            assertTrue("$name $onHex", block.contains("colorOnPrimary\">$onHex"))
+            assertReadable(colors, surfaces)
+        }
+    }
+
+    @Test
+    fun themeAttributeParserReadsCompiledQuestionMarkIds() {
+        assertEquals(0x7f040156, parseThemeAttribute("?2130968918"))
+        assertEquals(0x7f040156, parseThemeAttribute("?0x7f040156"))
+        assertEquals(null, parseThemeAttribute("#ff610a"))
+        assertEquals(null, parseThemeAttribute(null))
     }
 
     private fun assertReadable(colors: AccentColors, rawSurfaces: IntArray) {
@@ -268,8 +325,76 @@ class AccentColorTableTest {
     @Test
     fun runtimeLoaderInstallIsStatic() {
         val cls = Class.forName("org.videolan.vlc.gui.helpers.AccentColorLoader")
-        val method = cls.getDeclaredMethod("install", android.content.Context::class.java, ByteArray::class.java)
+        val method = cls.getDeclaredMethod(
+                "install",
+                android.content.res.Resources::class.java,
+                ByteArray::class.java,
+                String::class.java,
+        )
         assertTrue(Modifier.isStatic(method.modifiers))
+        assertNotEquals(null, cls.getDeclaredMethod("remove", android.content.res.Resources::class.java))
+    }
+
+    @Test
+    fun buildToolsReadGeneratedColorTable() {
+        val table = createAccentColorTable(
+                "org.videolan.mobile.app",
+                listOf(AccentColorSlot(0x7F0603D6, "vlme_probe", 0xFF123456.toInt())),
+        )
+        val root = java.io.File.createTempFile("accent-table", "").apply { delete(); mkdirs() }
+        val zip = java.io.File(root, "table.zip")
+        java.util.zip.ZipOutputStream(zip.outputStream()).use { out ->
+            out.putNextEntry(java.util.zip.ZipEntry("resources.arsc"))
+            out.write(table)
+            out.closeEntry()
+        }
+        val dump = runTool(locateBuildTool("aapt"), "dump", "resources", zip.absolutePath)
+        assertTrue(dump, dump.contains("name=org.videolan.mobile.app"))
+        assertTrue(dump, dump.contains("color/vlme_probe"))
+        assertTrue(dump, dump.contains("d=0xff123456"))
+
+        val resDir = java.io.File(root, "res/values").apply { mkdirs() }
+        java.io.File(resDir, "colors.xml").writeText(
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?><resources><color name=\"vlme_probe\">#FF123456</color></resources>",
+        )
+        val manifest = java.io.File(root, "AndroidManifest.xml")
+        manifest.writeText("<manifest package=\"org.videolan.mobile.app\"/>")
+        val compiled = java.io.File(root, "compiled").apply { mkdirs() }
+        runTool(locateBuildTool("aapt2"), "compile", java.io.File(resDir, "colors.xml").absolutePath, "-o", compiled.absolutePath)
+        val linked = java.io.File(root, "linked.apk")
+        val androidJar = java.io.File(sdkRoot(), "platforms/android-36/android.jar")
+        assertTrue(androidJar.isFile)
+        val flat = compiled.listFiles()?.first { it.name.endsWith(".flat") }
+                ?: throw AssertionError("aapt2 compile produced no flat file")
+        runTool(
+                locateBuildTool("aapt2"), "link",
+                "-o", linked.absolutePath,
+                "--manifest", manifest.absolutePath,
+                "-I", androidJar.absolutePath,
+                flat.absolutePath,
+        )
+        val linkedDump = runTool(locateBuildTool("aapt2"), "dump", "resources", linked.absolutePath)
+        assertTrue(linkedDump, linkedDump.contains("vlme_probe"))
+        assertTrue(linkedDump, linkedDump.contains("#ff123456") || linkedDump.contains("0xff123456") || linkedDump.contains("d=0xff123456"))
+        root.deleteRecursively()
+    }
+
+    private fun sdkRoot(): String =
+            System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT") ?: "/home/ubuntu/android-sdk"
+
+    private fun locateBuildTool(name: String): String {
+        val tools = java.io.File(sdkRoot(), "build-tools")
+        val found = tools.listFiles()?.flatMap { dir ->
+            dir.listFiles()?.filter { it.name == name && it.canExecute() } ?: emptyList()
+        }?.firstOrNull()
+        return found?.absolutePath ?: throw AssertionError("$name not found under ${tools.absolutePath}")
+    }
+
+    private fun runTool(vararg args: String): String {
+        val process = ProcessBuilder(*args).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().readText()
+        assertEquals(output, 0, process.waitFor())
+        return output
     }
 
     @Test
