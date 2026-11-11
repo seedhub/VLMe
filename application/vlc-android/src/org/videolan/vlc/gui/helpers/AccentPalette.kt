@@ -72,6 +72,26 @@ internal fun canonicalAccentSeed(stored: Int): Int? {
     return LEGACY_TO_PRESET[opaque] ?: opaque
 }
 
+private val PRESET_ACCENTS = setOf(
+        STOCK_ORANGE,
+        PRESET_BLUE,
+        PRESET_GREEN,
+        PRESET_RED,
+        PRESET_PURPLE,
+        PRESET_TEAL,
+        PRESET_PINK,
+) + LEGACY_TO_PRESET.keys
+
+/**
+ * The accent picker explains the pre-30 drawable limit only while a custom
+ * color is the one selected. Presets and API 30+ resolve those drawables
+ * through the theme, so they get no note.
+ */
+internal fun customAccentNoteVisible(sdkInt: Int, color: Int): Boolean {
+    if (sdkInt >= 30) return false
+    return (color or 0xFF000000.toInt()) !in PRESET_ACCENTS
+}
+
 /**
  * Drops fully transparent colors. Translucent surfaces are composited over
  * the darkest and lightest opaque surface, which is the pair of backgrounds
