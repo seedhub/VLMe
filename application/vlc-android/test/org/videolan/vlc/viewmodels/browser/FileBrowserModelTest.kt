@@ -64,7 +64,7 @@ class FileBrowserModelTest : BaseTest() {
     }
 
     private fun initBrowserModel(url: String?, showHiddenFiles: Boolean, showDummyCategory: Boolean = false) {
-        browserModel = BrowserModel(application, url, TYPE_FILE, showHiddenFiles, showDummyCategory, TestCoroutineContextProvider())
+        browserModel = BrowserModel(application, url, TYPE_FILE, showDummyCategory, coroutineContextProvider = TestCoroutineContextProvider())
         browserProvider = browserModel.provider
         mediaBrowser = BrowserProvider.get(browserProvider)
     }

@@ -75,7 +75,7 @@ class StorageModelTest : BaseTest() {
      */
     private fun initBrowserModel(showHiddenFiles: Boolean, url: String?) {
         this.showHiddenFiles = showHiddenFiles
-        browserModel = BrowserModel(application, url, TYPE_STORAGE, showHiddenFiles, false, TestCoroutineContextProvider())
+        browserModel = BrowserModel(application, url, TYPE_STORAGE, false, coroutineContextProvider = TestCoroutineContextProvider())
         browserProvider = browserModel.provider
     }
 

@@ -49,7 +49,7 @@ class FilePickerModelTest : BaseTest() {
         super.beforeTest()
         dummyUrl = temporaryFolder.root.absolutePath
 
-        browserModel = BrowserModel(application, dummyUrl, TYPE_PICKER, false, true, org.videolan.vlc.util.TestCoroutineContextProvider())
+        browserModel = BrowserModel(application, dummyUrl, TYPE_PICKER, false, org.videolan.vlc.providers.PickerType.SUBTITLE, org.videolan.vlc.util.TestCoroutineContextProvider())
         browserProvider = browserModel.provider
 
         setupTestFiles()
