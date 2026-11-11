@@ -25,6 +25,11 @@ import androidx.core.net.toUri
 import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.resources.TYPE_LOCAL_FAV
 import org.videolan.resources.TYPE_NETWORK_FAV
+import org.videolan.resources.opensubtitles.Attributes
+import org.videolan.resources.opensubtitles.Data
+import org.videolan.resources.opensubtitles.FeatureDetails
+import org.videolan.resources.opensubtitles.File
+import org.videolan.resources.opensubtitles.OpenSubV1
 import org.videolan.vlc.gui.dialogs.State
 import org.videolan.vlc.gui.dialogs.SubtitleItem
 
@@ -102,6 +107,54 @@ object TestUtil {
             createCustomDirectory("$directory$it")
         }
     }
+
+    fun createOpenSubtitleData(id: String, language: String, movieName: String, fileName: String): Data {
+        return Data(
+                attributes = Attributes(
+                        aiTranslated = false,
+                        comments = null,
+                        featureDetails = FeatureDetails(
+                                episodeNumber = null,
+                                featureId = null,
+                                featureType = null,
+                                imdbId = null,
+                                movieName = movieName,
+                                parentFeatureId = null,
+                                parentImdbId = null,
+                                parentTitle = null,
+                                parentTmdbId = null,
+                                seasonNumber = null,
+                                title = movieName,
+                                tmdbId = null,
+                                year = null,
+                        ),
+                        fileHashes = null,
+                        files = listOf(File(cdNumber = null, fileId = id.toLongOrNull() ?: 0L, fileName = fileName)),
+                        foreignPartsOnly = null,
+                        fps = null,
+                        fromTrusted = null,
+                        hd = null,
+                        language = language,
+                        legacySubtitleId = null,
+                        legacyUploaderId = null,
+                        machineTranslated = null,
+                        nbCd = null,
+                        newDownloadCount = null,
+                        relatedLinks = null,
+                        release = null,
+                        slug = null,
+                        subtitleId = id,
+                        uploadDate = null,
+                        uploader = null,
+                        url = null,
+                        votes = null,
+                ),
+                id = id,
+                type = "subtitle",
+        )
+    }
+
+    fun openSubtitles(data: List<Data>) = OpenSubV1(data, 1, data.size, data.size, if (data.isEmpty()) 0 else 1)
 
     fun createDownloadingSubtitleItem(
             idSubtitle: String,

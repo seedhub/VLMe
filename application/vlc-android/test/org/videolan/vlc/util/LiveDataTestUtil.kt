@@ -22,7 +22,9 @@ package org.videolan.vlc.util
 
 import androidx.lifecycle.LiveData
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -49,16 +51,11 @@ fun <T> getValue(liveData: LiveData<T>): T {
     return data[0] as T
 }
 
+/**
+ * Collects the first emission. [Flow.onEach] alone never starts the flow, so a
+ * latch waiting on it always times out.
+ */
 @Throws(InterruptedException::class)
-fun <T> getValue(liveData: Flow<T>): T {
-    val data = arrayOfNulls<Any>(1)
-    val latch = CountDownLatch(1)
-    liveData.onEach { o ->
-        data[0] = o
-        latch.countDown()
-    }
-    latch.await(2, TimeUnit.SECONDS)
-
-    @Suppress("UNCHECKED_CAST")
-    return data[0] as T
+fun <T> getValue(flow: Flow<T>): T = runBlocking {
+    withTimeout(2_000) { flow.first() }
 }

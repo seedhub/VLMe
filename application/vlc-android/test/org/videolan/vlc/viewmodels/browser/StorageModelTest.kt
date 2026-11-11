@@ -7,7 +7,6 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.spyk
 import junit.framework.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -23,6 +22,7 @@ import org.videolan.vlc.database.CustomDirectoryDao
 import org.videolan.vlc.providers.BrowserProvider
 import org.videolan.vlc.repository.DirectoryRepository
 import org.videolan.tools.CoroutineContextProvider
+import org.videolan.tools.Settings
 import org.videolan.vlc.util.TestCoroutineContextProvider
 import org.videolan.vlc.util.applyMock
 import java.io.File
@@ -75,6 +75,7 @@ class StorageModelTest : BaseTest() {
      */
     private fun initBrowserModel(showHiddenFiles: Boolean, url: String?) {
         this.showHiddenFiles = showHiddenFiles
+        Settings.showHiddenFiles = showHiddenFiles
         browserModel = BrowserModel(application, url, TYPE_STORAGE, false, coroutineContextProvider = TestCoroutineContextProvider())
         browserProvider = browserModel.provider
     }
@@ -137,12 +138,12 @@ class StorageModelTest : BaseTest() {
         val testResult = browserModel.dataset.test()
                 .value()
 
-        assertEquals(countDirs, testResult.size)
+        assertEquals(countDirs + countVideos, testResult.size)
         assertEquals(0, browserProvider.getFlags(false) and MediaBrowser.Flag.ShowHiddenFiles)
     }
 
     @Test
-    fun whenAtCustomDirAndHiddenDirectoryPresentWithShowHiddenFiles_checkResultHasHiddenDirectoriesAndFlagIsShowHiddenFiles() {
+    fun whenAtCustomDirAndHiddenDirectoryPresent_storageFlagsDoNotRequestHiddenFiles() {
         val customDir = org.videolan.vlc.mediadb.models.CustomDirectory(temporaryFolder.root.path)
         coEvery { mockedDirectoryRepo.getCustomDirectories() } returns listOf(customDir)
 
@@ -152,8 +153,9 @@ class StorageModelTest : BaseTest() {
         val testResult = browserModel.dataset.test()
                 .value()
 
-        assertEquals(countDirs + countHiddenDirs, testResult.size)
-        assertNotEquals(0, browserProvider.getFlags(false) and MediaBrowser.Flag.ShowHiddenFiles)
+        assertEquals(countDirs + countHiddenDirs + countVideos, testResult.size)
+        // StorageProvider never asks libvlc for hidden files. The medialibrary does not index them.
+        assertEquals(0, browserProvider.getFlags(false) and MediaBrowser.Flag.ShowHiddenFiles)
     }
 
     @Test

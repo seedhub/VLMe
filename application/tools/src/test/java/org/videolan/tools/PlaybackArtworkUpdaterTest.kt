@@ -148,9 +148,9 @@ class PlaybackArtworkUpdaterTest {
     }
 
     /**
-     * Same order as PlaybackService: UpdateMeta asks for art and publishes
-     * metadata immediately, then the serial actor still handles player state,
-     * callback registration, and ShowNotification before the download finishes.
+     * Replays the PlaybackService command order on a local channel. It does not
+     * construct PlaybackService, so a regression in that service's actor wiring
+     * will not fail this test.
      */
     @Test(timeout = 10_000)
     fun serviceActorPublishesStateAndNotificationBeforeArtworkArrives() = runBlocking {

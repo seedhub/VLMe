@@ -7,6 +7,7 @@ import io.mockk.MockKAnnotations
 import io.mockk.clearAllMocks
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.*
 import org.junit.runner.RunWith
@@ -34,6 +35,9 @@ open class BaseTest {
 
     @Before
     open fun beforeTest() {
+        // Inside the Robolectric sandbox. @BeforeClass runs before the sandbox
+        // exists and initializing Dispatchers.Main there breaks Looper.
+        Dispatchers.setMain(Dispatchers.Unconfined)
         println("beforeTest")
     }
 
@@ -41,15 +45,10 @@ open class BaseTest {
     open fun afterTest() {
         println("afterTest")
         clearAllMocks()
+        Dispatchers.resetMain()
     }
 
     companion object {
-        @BeforeClass
-        @JvmStatic
-        fun setupTestClass() {
-            Dispatchers.setMain(Dispatchers.Unconfined)
-        }
-
         @AfterClass
         @JvmStatic
         fun cleanupTestClass() {

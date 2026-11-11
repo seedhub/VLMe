@@ -59,7 +59,7 @@ class ExternalSubRepositoryTest {
     @Before fun init() {
         val db = mock<MediaDatabase>()
         `when`(db.externalSubDao()).thenReturn(externalSubDao)
-        externalSubRepository = ExternalSubRepository(externalSubDao)
+        externalSubRepository = ExternalSubRepository(externalSubDao, org.videolan.vlc.util.TestCoroutineContextProvider())
     }
 
     @Test fun saveTwoSubtitleForTwoMedia_GetShouldReturnZero() = runBlocking {
@@ -78,6 +78,8 @@ class ExternalSubRepositoryTest {
         }
 
 
+        val fooUri = mock<Uri>()
+        `when`(fooUri.path).thenReturn(foo)
         PowerMockito.mockStatic(Uri::class.java)
         PowerMockito.`when`<Any>(Uri::class.java, "decode", anyString()).thenAnswer { it.arguments[0] as String }
 
@@ -96,8 +98,8 @@ class ExternalSubRepositoryTest {
         `when`(externalSubDao.get(foo)).thenReturn(fakeFooLiveDataSubtitles)
         `when`(externalSubDao.get(bar)).thenReturn(fakeBarLiveDataSubtitles)
 
-        val fooSubtitles = getValue(externalSubRepository.getDownloadedSubtitles(foo.toUri()))
-        verify(externalSubDao, times(2)).get(anyString())
+        val fooSubtitles = getValue(externalSubRepository.getDownloadedSubtitles(fooUri))
+        verify(externalSubDao).get(foo)
         assertThat(fooSubtitles.size, `is`(0))
     }
 
@@ -118,6 +120,10 @@ class ExternalSubRepositoryTest {
             TestUtil.createExternalSub("2$it", file.path, bar, "en", "bar")
         }
 
+        val fooUri = mock<Uri>()
+        val barUri = mock<Uri>()
+        `when`(fooUri.path).thenReturn(foo)
+        `when`(barUri.path).thenReturn(bar)
         PowerMockito.mockStatic(Uri::class.java)
         PowerMockito.`when`<Any>(Uri::class.java, "decode", anyString()).thenAnswer { it.arguments[0] as String }
 
@@ -137,8 +143,8 @@ class ExternalSubRepositoryTest {
         `when`(externalSubDao.get(foo)).thenReturn(fakeFooLiveDataSubtitles)
         `when`(externalSubDao.get(bar)).thenReturn(fakeBarLiveDataSubtitles)
 
-        val fooSubtitles = getValue(externalSubRepository.getDownloadedSubtitles(foo.toUri()))
-        val barSubtitles = getValue(externalSubRepository.getDownloadedSubtitles(bar.toUri()))
+        val fooSubtitles = getValue(externalSubRepository.getDownloadedSubtitles(fooUri))
+        val barSubtitles = getValue(externalSubRepository.getDownloadedSubtitles(barUri))
         verify(externalSubDao, times(2)).get(anyString())
         assertThat(fooSubtitles.size, `is`(2))
         assertThat(barSubtitles.size, `is`(2))
