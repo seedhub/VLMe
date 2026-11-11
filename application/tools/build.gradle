@@ -24,6 +24,16 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.all {
+            testLogging {
+                events "passed", "skipped", "failed"
+                exceptionFormat "full"
+                showStandardStreams = true
+            }
+        }
+    }
 }
 
 dependencies {
@@ -37,6 +47,9 @@ dependencies {
     implementation "androidx.core:core-ktx:$rootProject.ext.androidxCoreVersion"
 
     testImplementation "junit:junit:$rootProject.ext.junitVersion"
+    // Repo pin 4.3.1 cannot load its sandbox on the JDK 21 that AGP 9 requires
+    // (InaccessibleObjectException). This module's unit tests only.
+    testImplementation "org.robolectric:robolectric:4.17"
     androidTestImplementation "androidx.test:runner:$rootProject.ext.testRunner"
     androidTestImplementation "androidx.test.espresso:espresso-core:$rootProject.espressoVersion"
 }

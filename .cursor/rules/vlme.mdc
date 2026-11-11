@@ -1,0 +1,12 @@
+---
+description: VLMe architecture and change safeguards
+alwaysApply: true
+---
+
+# VLMe (VLC-Android fork)
+
+- Application id `io.github.seedhub.vlme`. The VLC 3 line (this tree, 3.7.x) has minSdk 17. `forceVlc4` raises minSdk to 23. targetSdk and compileSdk are 36. Do not raise minSdk or mass-upgrade the stack.
+- UI is Android Views, DataBinding, and Leanback. Do not rewrite screens to Compose. New code is Kotlin. Do not add Java sources or XML layouts.
+- App modules are under `application/` (`app`, `vlc-android`, `tools`, `resources`, `television`, `moviepedia`, `mediadb`). Debug assemble is `:application:app:assembleDebug`. Debug/release LibVLC comes from Maven (`org.videolan.android:libvlc-all`); `buildsystem/compile.sh` is the native build.
+- `HttpImageLoader` is shared by screens and playback. One HTTP request per image, finite connect/read/overall bounds, every stream and connection closed, and caller cancellation or a finished download must not leave that URL stuck in flight or retain a Bitmap outside `BitmapCache`.
+- Do not change signing, keystores, `local.properties`, API keys, or publishing. An empty OpenSubtitles download header is not a broken-download fix. Clearing the bitmap cache on every trim level is a measured tradeoff, not a default code change.
