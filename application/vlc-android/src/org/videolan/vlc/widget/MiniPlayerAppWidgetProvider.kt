@@ -43,6 +43,7 @@ import androidx.annotation.DrawableRes
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.palette.graphics.Palette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.videolan.medialibrary.MLServiceLocator
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
@@ -335,7 +336,7 @@ class MiniPlayerAppWidgetProvider : AppWidgetProvider() {
                     ?: settings.getString(KEY_CURRENT_AUDIO_RESUME_THUMB, null) else settings.getString(KEY_CURRENT_AUDIO_RESUME_THUMB, null)
             if (!widgetCacheEntry.currentCover.isNullOrEmpty()) {
                 log(appWidgetId, WidgetLogType.INFO, "Bugfix Refresh - Update cover: ${widgetCacheEntry.currentMedia?.artworkMrl} for ${widgetCacheEntry.widget.widgetId} -> ${widgetCacheEntry.currentCover}")
-                runIO {
+                AppScope.launch(Dispatchers.IO) {
                     log(appWidgetId, WidgetLogType.BITMAP_GENERATION, "Generating cover")
                     val cover = AudioUtil.readCoverBitmap(Uri.decode(widgetCacheEntry.currentCover), 320)
                     val wm = context.getSystemService<WindowManager>()!!

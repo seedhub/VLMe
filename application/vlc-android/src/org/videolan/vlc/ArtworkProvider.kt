@@ -41,6 +41,7 @@ import android.util.LruCache
 import androidx.annotation.DrawableRes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.videolan.libvlc.FactoryManager
 import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.interfaces.IMediaFactory
@@ -155,17 +156,21 @@ class ArtworkProvider : ContentProvider() {
     private fun getRemoteImage(ctx: Context, path: String?): ParcelFileDescriptor? {
         val width = 512
         if (path == null) return null
+        // Only a successful download is cached. A timeout or failure still returns a
+        // placeholder file so the provider contract stays non-null when we can encode one,
+        // and the next openFile can try the network again.
         val image = getOrPutImage(path) {
-            runBlocking(Dispatchers.IO) {
-                var bitmap = AudioUtil.readCoverBitmap(path, width)
-                if (bitmap != null) bitmap = padSquare(bitmap)
-                if (bitmap == null) bitmap = ctx.getBitmapFromDrawable(R.drawable.ic_no_media, width, width)
-                return@runBlocking BitmapUtil.encodeImage(bitmap, ENABLE_TRACING){
-                    getTimestamp()
+            runBlocking {
+                withTimeoutOrNull(AudioUtil.SYNC_REMOTE_ARTWORK_TIMEOUT_MS) {
+                    val bitmap = AudioUtil.readCoverBitmap(path, width) ?: return@withTimeoutOrNull null
+                    BitmapUtil.encodeImage(padSquare(bitmap), ENABLE_TRACING) { getTimestamp() }
                 }
             }
         }
-        return getPFDFromByteArray(image)
+        if (image != null) return getPFDFromByteArray(image)
+        val placeholder = ctx.getBitmapFromDrawable(R.drawable.ic_no_media, width, width) ?: return null
+        return BitmapUtil.encodeImage(padSquare(placeholder), ENABLE_TRACING) { getTimestamp() }
+            ?.let { getPFDFromByteArray(it) }
     }
 
     /**
@@ -463,7 +468,7 @@ class ArtworkProvider : ContentProvider() {
                 val libVlc = VLCInstance.getInstance(ctx)
                 val mediaFactory = FactoryManager.getFactory(IMediaFactory.factoryId) as IMediaFactory
                 media = mediaFactory.getFromUri(libVlc, mw.uri).apply { parse() }
-                AudioUtil.readCoverBitmap(Uri.decode(MLServiceLocator.getAbstractMediaWrapper(media).artworkMrl), width)
+                AudioUtil.readCoverBitmapBlocking(Uri.decode(MLServiceLocator.getAbstractMediaWrapper(media).artworkMrl), width)
             } finally {
                 media?.release()
             }
