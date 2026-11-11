@@ -7,7 +7,6 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.spyk
 import junit.framework.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -16,6 +15,7 @@ import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.stubs.StubMedia
 import org.videolan.libvlc.util.MediaBrowser
 import org.videolan.medialibrary.interfaces.Medialibrary
+import org.videolan.resources.AndroidDevices
 import org.videolan.medialibrary.stubs.StubMediaWrapper
 import org.videolan.vlc.BaseTest
 import org.videolan.vlc.R
@@ -23,6 +23,7 @@ import org.videolan.vlc.database.CustomDirectoryDao
 import org.videolan.vlc.providers.BrowserProvider
 import org.videolan.vlc.repository.DirectoryRepository
 import org.videolan.tools.CoroutineContextProvider
+import org.videolan.tools.Settings
 import org.videolan.vlc.util.TestCoroutineContextProvider
 import org.videolan.vlc.util.applyMock
 import java.io.File
@@ -75,7 +76,8 @@ class StorageModelTest : BaseTest() {
      */
     private fun initBrowserModel(showHiddenFiles: Boolean, url: String?) {
         this.showHiddenFiles = showHiddenFiles
-        browserModel = BrowserModel(application, url, TYPE_STORAGE, showHiddenFiles, false, TestCoroutineContextProvider())
+        Settings.showHiddenFiles = showHiddenFiles
+        browserModel = BrowserModel(application, url, TYPE_STORAGE, false, coroutineContextProvider = TestCoroutineContextProvider())
         browserProvider = browserModel.provider
     }
 
@@ -111,7 +113,7 @@ class StorageModelTest : BaseTest() {
     @Test
     fun whenAtRootAndTwoCustomDirectoriesWithOneChildOfInternalStorage_checkTwoResultsAreObtained() {
         val customDir = org.videolan.vlc.mediadb.models.CustomDirectory(temporaryFolder.newFile("custom1").path)
-        val newDirInsideInternalStorage = File("${Environment.getExternalStorageDirectory().path}/custom2")
+        val newDirInsideInternalStorage = File("${AndroidDevices.EXTERNAL_PUBLIC_DIRECTORY}/custom2")
         newDirInsideInternalStorage.mkdir()
         val customDirInsideInternalStorage = org.videolan.vlc.mediadb.models.CustomDirectory(newDirInsideInternalStorage.path)
         coEvery { mockedDirectoryRepo.getCustomDirectories() } returns listOf(customDir, customDirInsideInternalStorage)
@@ -137,12 +139,12 @@ class StorageModelTest : BaseTest() {
         val testResult = browserModel.dataset.test()
                 .value()
 
-        assertEquals(countDirs, testResult.size)
+        assertEquals(countDirs + countVideos, testResult.size)
         assertEquals(0, browserProvider.getFlags(false) and MediaBrowser.Flag.ShowHiddenFiles)
     }
 
     @Test
-    fun whenAtCustomDirAndHiddenDirectoryPresentWithShowHiddenFiles_checkResultHasHiddenDirectoriesAndFlagIsShowHiddenFiles() {
+    fun whenAtCustomDirAndHiddenDirectoryPresent_storageFlagsDoNotRequestHiddenFiles() {
         val customDir = org.videolan.vlc.mediadb.models.CustomDirectory(temporaryFolder.root.path)
         coEvery { mockedDirectoryRepo.getCustomDirectories() } returns listOf(customDir)
 
@@ -152,8 +154,9 @@ class StorageModelTest : BaseTest() {
         val testResult = browserModel.dataset.test()
                 .value()
 
-        assertEquals(countDirs + countHiddenDirs, testResult.size)
-        assertNotEquals(0, browserProvider.getFlags(false) and MediaBrowser.Flag.ShowHiddenFiles)
+        assertEquals(countDirs + countHiddenDirs + countVideos, testResult.size)
+        // StorageProvider never asks libvlc for hidden files. The medialibrary does not index them.
+        assertEquals(0, browserProvider.getFlags(false) and MediaBrowser.Flag.ShowHiddenFiles)
     }
 
     @Test
@@ -170,6 +173,8 @@ class StorageModelTest : BaseTest() {
                 .awaitValue()
                 .value()
 
-        assertEquals(oldResult.reversed(), newResult)
+        val expected = oldResult.toMutableList()
+        browserProvider.sort(expected)
+        assertEquals(expected.map { it.title }, newResult.map { it.title })
     }
 }

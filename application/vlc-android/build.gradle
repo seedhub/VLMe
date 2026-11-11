@@ -57,7 +57,11 @@ android {
             includeAndroidResources = true
         }
         unitTests.all {
-            jvmArgs '-noverify'
+            jvmArgs '-noverify',
+                    '--add-opens=java.base/java.lang=ALL-UNNAMED',
+                    '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+                    '--add-opens=java.base/java.util=ALL-UNNAMED',
+                    '--add-opens=java.base/jdk.internal.access=ALL-UNNAMED'
             testLogging {
                 events "passed", "skipped", "failed", "standardOut", "standardError"
                 outputs.upToDateWhen { false }
@@ -227,7 +231,9 @@ dependencies {
     testImplementation "org.powermock:powermock-api-mockito2:$rootProject.ext.powerMock"
     testImplementation "org.powermock:powermock-module-junit4:$rootProject.ext.powerMock"
     testImplementation "com.jraska.livedata:testing-ktx:$rootProject.ext.livedataTest"
-    testImplementation "org.robolectric:robolectric:$rootProject.ext.robolectric"
+    // Repo pin 4.3.1 refuses targetSdk 36 (maxSdkVersion=29) and cannot load its
+    // sandbox on the JDK 21 that AGP 9 requires. Unit tests only; the app stays on 4.3.1.
+    testImplementation "org.robolectric:robolectric:4.17"
     androidTestImplementation "androidx.test:rules:$rootProject.ext.testCore"
     androidTestImplementation 'com.jraska:falcon:2.2.0'
     androidTestImplementation 'tools.fastlane:screengrab:2.1.0'

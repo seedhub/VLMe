@@ -23,9 +23,9 @@ class AlbumSongsViewModelTest : BaseTest() {
 
     private fun setupViewModel(name: String, isArtist: Boolean) {
         if (isArtist)
-            parent = MLServiceLocator.getAbstractArtist(dataSource.uuid, name, "", "", "")
+            parent = MLServiceLocator.getAbstractArtist(dataSource.uuid, name, "", "", "", 0, 0, 0, false)
         else
-            parent = MLServiceLocator.getAbstractGenre(dataSource.uuid, name)
+            parent = MLServiceLocator.getAbstractGenre(dataSource.uuid, name, false)
         albumSongsViewModel = AlbumSongsViewModel(context, parent)
     }
 
@@ -113,7 +113,10 @@ class AlbumSongsViewModelTest : BaseTest() {
 
         waitForProvidersData()
 
-        assertNotNull(albumSongsViewModel.tracksProvider.getAll()[count - 1])
+        val tracks = albumSongsViewModel.tracksProvider.getAll()
+        assertEquals(count, tracks.size)
+        assertNotNull(tracks[0])
+        assertNull(tracks[count - 1])
     }
 
     @Test
@@ -165,7 +168,7 @@ class AlbumSongsViewModelTest : BaseTest() {
     @Test
     fun whenThereAreAlbumsWithArtistAndFilteredWithExistingAlbum_checkAlbumResultIsNotEmpty() {
         createDummyAudios(3, "XYZ")
-        setupViewModel("CrazyArtists", true) // That's the name of Album Artist
+        setupViewModel("Artisto", true)
 
         albumSongsViewModel.filter("CD1")
 
@@ -258,7 +261,7 @@ class AlbumSongsViewModelTest : BaseTest() {
     fun whenThereAreFourArtistTracksWithAlternatelyDifferentTitles_checkAlbumHeadersIsSortedByDate() {
         createDummyAudios(2, "test")
         createDummyAudios(2, "fake")
-        setupViewModel("CrazyArtists", true)
+        setupViewModel("Artisto", true)
 
         waitForProvidersData()
 

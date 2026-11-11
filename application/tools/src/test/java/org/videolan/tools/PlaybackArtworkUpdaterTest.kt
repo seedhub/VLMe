@@ -147,6 +147,60 @@ class PlaybackArtworkUpdaterTest {
         assertEquals(0, loads)
     }
 
+    /**
+     * Replays the PlaybackService command order on a local channel. It does not
+     * construct PlaybackService, so a regression in that service's actor wiring
+     * will not fail this test.
+     */
+    @Test(timeout = 10_000)
+    fun serviceActorPublishesStateAndNotificationBeforeArtworkArrives() = runBlocking {
+        val gate = CompletableDeferred<String?>()
+        var current = "media-a"
+        val published = CopyOnWriteArrayList<Pair<String, String?>>()
+        val actorLog = CopyOnWriteArrayList<String>()
+        val updater = PlaybackArtworkUpdater(
+            scope = this,
+            cached = { null },
+            load = { gate.await() },
+            isCurrent = { it == current },
+            onArtwork = { key, artwork ->
+                if (artwork != null && key == current) published.add(key to artwork)
+            },
+        )
+        val commands = Channel<String>(Channel.UNLIMITED)
+        val actor = launch {
+            for (command in commands) {
+                when (command) {
+                    "UpdateMeta" -> {
+                        val artNow = updater.request(current, "http://art.example/a")
+                        published.add(current to artNow)
+                        actorLog.add("UpdateMeta")
+                    }
+                    "CbMediaPlayerEvent:playing" -> actorLog.add(command)
+                    "CbAdd" -> actorLog.add(command)
+                    "ShowNotification" -> actorLog.add(command)
+                    else -> actorLog.add(command)
+                }
+            }
+        }
+        commands.trySend("UpdateMeta")
+        commands.trySend("CbMediaPlayerEvent:playing")
+        commands.trySend("CbAdd")
+        commands.trySend("ShowNotification")
+        delay(150)
+        assertEquals(
+            listOf("UpdateMeta", "CbMediaPlayerEvent:playing", "CbAdd", "ShowNotification"),
+            actorLog.toList(),
+        )
+        assertEquals(listOf("media-a" to null), published.toList())
+        current = "media-b"
+        gate.complete("art-a")
+        delay(150)
+        assertEquals(listOf("media-a" to null), published.toList())
+        commands.close()
+        actor.join()
+    }
+
     @Test(timeout = 10_000)
     fun sameMediaDoesNotStartASecondDownload() = runBlocking {
         val gate = CompletableDeferred<String?>()

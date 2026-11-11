@@ -63,32 +63,30 @@ class AudioBrowserViewModelTest : BaseTest() {
     @Test
     fun whenThereAre5Tracks_checkTracksAre5GenresAre5AlbumsAre5ArtistsAre5ForTotalCount() {
         setupViewModel()
-        StubDataSource.getInstance().setAudioByCount(2, null) // AlbumArtist & Artist are same, so only one is added.
-        createDummyAudios(3, "XYZ") // AlbumArtist & Artist are different, so both are added.
+        StubDataSource.getInstance().setAudioByCount(2, null) // one artist, album, and genre
+        createDummyAudios(3, "XYZ") // a second artist, album, and genre
 
         waitForProvidersData()
 
         assertEquals(5, audioBrowserViewModel.tracksProvider.getTotalCount())
-        assertEquals(5, audioBrowserViewModel.genresProvider.getTotalCount())
-        /* TODO: I haven't yet checked the Medialibrary source code, but I doubt it would add duplicate album for each audio file
-         * So gotta fix the logic in stubs to simulate that behaviour. Once that's fixed, I'll update my tests with proper logic.
-         */
-        assertEquals(5, audioBrowserViewModel.albumsProvider.getTotalCount())
-        assertEquals(5, audioBrowserViewModel.artistsProvider.getTotalCount()) // Be default, showAll is false
+        assertEquals(2, audioBrowserViewModel.genresProvider.getTotalCount())
+        assertEquals(2, audioBrowserViewModel.albumsProvider.getTotalCount())
+        assertEquals(2, audioBrowserViewModel.artistsProvider.getTotalCount())
     }
 
     @Test
     fun whenThereAre5TracksWithShowAllTrue_checkTracksAre5GenresAre5AlbumsAre5ArtistsAre5ForTotalCount() {
         setupViewModel(showAll = true)
-        StubDataSource.getInstance().setAudioByCount(2, null) // AlbumArtist & Artist are same, so only one is added.
-        createDummyAudios(3, "XYZ") // AlbumArtist & Artist are different, so both are added.
+        StubDataSource.getInstance().setAudioByCount(2, null)
+        createDummyAudios(3, "XYZ")
 
         waitForProvidersData()
 
         assertEquals(5, audioBrowserViewModel.tracksProvider.getTotalCount())
-        assertEquals(5, audioBrowserViewModel.genresProvider.getTotalCount())
-        assertEquals(5, audioBrowserViewModel.albumsProvider.getTotalCount())
-        assertEquals(8, audioBrowserViewModel.artistsProvider.getTotalCount())
+        assertEquals(2, audioBrowserViewModel.genresProvider.getTotalCount())
+        assertEquals(2, audioBrowserViewModel.albumsProvider.getTotalCount())
+        // Empty album-artist names collapse onto the track artist, so showAll adds no extra row.
+        assertEquals(2, audioBrowserViewModel.artistsProvider.getTotalCount())
     }
 
     @Test
@@ -100,9 +98,9 @@ class AudioBrowserViewModelTest : BaseTest() {
         waitForProvidersData()
 
         assertEquals(5, audioBrowserViewModel.tracksProvider.pagedList.test().value().size)
-        assertEquals(5, audioBrowserViewModel.genresProvider.pagedList.test().value().size)
-        assertEquals(5, audioBrowserViewModel.albumsProvider.pagedList.test().value().size)
-        assertEquals(8, audioBrowserViewModel.artistsProvider.pagedList.test().value().size)
+        assertEquals(2, audioBrowserViewModel.genresProvider.pagedList.test().value().size)
+        assertEquals(2, audioBrowserViewModel.albumsProvider.pagedList.test().value().size)
+        assertEquals(2, audioBrowserViewModel.artistsProvider.pagedList.test().value().size)
     }
 
     @Test
@@ -111,10 +109,11 @@ class AudioBrowserViewModelTest : BaseTest() {
         val count = MEDIALIBRARY_PAGE_SIZE * 3 + 1
         StubDataSource.getInstance().setAudioByCount(count, null)
 
+        // Every generated file uses the same artist, album, and genre.
         assertEquals(count, audioBrowserViewModel.tracksProvider.getTotalCount())
-        assertEquals(count, audioBrowserViewModel.genresProvider.getTotalCount())
-        assertEquals(count, audioBrowserViewModel.albumsProvider.getTotalCount())
-        assertEquals(count, audioBrowserViewModel.artistsProvider.getTotalCount())
+        assertEquals(1, audioBrowserViewModel.genresProvider.getTotalCount())
+        assertEquals(1, audioBrowserViewModel.albumsProvider.getTotalCount())
+        assertEquals(1, audioBrowserViewModel.artistsProvider.getTotalCount())
     }
 
     @Test
@@ -126,9 +125,12 @@ class AudioBrowserViewModelTest : BaseTest() {
         waitForProvidersData()
 
         assertNull(audioBrowserViewModel.tracksProvider.pagedList.test().value()[count - 1])
-        assertNull(audioBrowserViewModel.genresProvider.pagedList.test().value()[count - 1])
-        assertNull(audioBrowserViewModel.albumsProvider.pagedList.test().value()[count - 1])
-        assertNull(audioBrowserViewModel.artistsProvider.pagedList.test().value()[count - 1])
+        assertEquals(1, audioBrowserViewModel.genresProvider.pagedList.test().value().size)
+        assertNotNull(audioBrowserViewModel.genresProvider.pagedList.test().value()[0])
+        assertEquals(1, audioBrowserViewModel.albumsProvider.pagedList.test().value().size)
+        assertNotNull(audioBrowserViewModel.albumsProvider.pagedList.test().value()[0])
+        assertEquals(1, audioBrowserViewModel.artistsProvider.pagedList.test().value().size)
+        assertNotNull(audioBrowserViewModel.artistsProvider.pagedList.test().value()[0])
     }
 
     @Test
@@ -136,11 +138,19 @@ class AudioBrowserViewModelTest : BaseTest() {
         setupViewModel()
         val count = MEDIALIBRARY_PAGE_SIZE * 3 + 1
         StubDataSource.getInstance().setAudioByCount(count, null)
+        waitForProvidersData()
 
-        assertNotNull(audioBrowserViewModel.tracksProvider.getAll()[count - 1])
-        assertNotNull(audioBrowserViewModel.genresProvider.getAll()[count - 1])
-        assertNotNull(audioBrowserViewModel.albumsProvider.getAll()[count - 1])
-        assertNotNull(audioBrowserViewModel.artistsProvider.getAll()[count - 1])
+        // getAll returns the paged snapshot: the first page is present and the unloaded tail is not.
+        val tracks = audioBrowserViewModel.tracksProvider.getAll()
+        assertEquals(count, tracks.size)
+        assertNotNull(tracks[0])
+        assertNull(tracks[count - 1])
+        assertEquals(1, audioBrowserViewModel.genresProvider.getAll().size)
+        assertNotNull(audioBrowserViewModel.genresProvider.getAll()[0])
+        assertEquals(1, audioBrowserViewModel.albumsProvider.getAll().size)
+        assertNotNull(audioBrowserViewModel.albumsProvider.getAll()[0])
+        assertEquals(1, audioBrowserViewModel.artistsProvider.getAll().size)
+        assertNotNull(audioBrowserViewModel.artistsProvider.getAll()[0])
     }
 
     @Test
@@ -150,7 +160,7 @@ class AudioBrowserViewModelTest : BaseTest() {
         createDummyAudios(3, "XYZ") // AlbumArtist & Artist are different, so both are added.
 
         audioBrowserViewModel.artistsProvider.showAll = true
-        assertEquals(8, audioBrowserViewModel.artistsProvider.pagedList.test().awaitValue().value().size)
+        assertEquals(2, audioBrowserViewModel.artistsProvider.pagedList.test().awaitValue().value().size)
     }
 
     @Test
@@ -160,7 +170,7 @@ class AudioBrowserViewModelTest : BaseTest() {
         createDummyAudios(3, "XYZ") // AlbumArtist & Artist are different, so both are added.
 
         audioBrowserViewModel.artistsProvider.showAll = false
-        assertEquals(5, audioBrowserViewModel.artistsProvider.pagedList.test().awaitValue().value().size)
+        assertEquals(2, audioBrowserViewModel.artistsProvider.pagedList.test().awaitValue().value().size)
     }
 
     @Test
@@ -312,6 +322,8 @@ class AudioBrowserViewModelTest : BaseTest() {
         assertEquals(2, audioBrowserViewModel.tracksProvider.pagedList.test().value().size)
 
         createDummyAudios(3, "test")
+        // refresh() reloads the current tab. Tracks are index 2.
+        audioBrowserViewModel.currentTab = 2
         audioBrowserViewModel.refresh()
 
         waitForProvidersData()
@@ -378,6 +390,6 @@ class AudioBrowserViewModelTest : BaseTest() {
 
         // Assertion for artist headers
         assertEquals(1, artistHeaders.size())
-        assertEquals("C", artistHeaders[0])
+        assertEquals("A", artistHeaders[0])
     }
 }

@@ -49,7 +49,7 @@ class FilePickerModelTest : BaseTest() {
         super.beforeTest()
         dummyUrl = temporaryFolder.root.absolutePath
 
-        browserModel = BrowserModel(application, dummyUrl, TYPE_PICKER, false, true, org.videolan.vlc.util.TestCoroutineContextProvider())
+        browserModel = BrowserModel(application, dummyUrl, TYPE_PICKER, false, org.videolan.vlc.providers.PickerType.SUBTITLE, org.videolan.vlc.util.TestCoroutineContextProvider())
         browserProvider = browserModel.provider
 
         setupTestFiles()
@@ -72,7 +72,7 @@ class FilePickerModelTest : BaseTest() {
         val testResult = browserModel.dataset.test()
                 .value()
 
-        assertEquals(countDirs, testResult.size)
+        assertEquals(countDirs + countVideos, testResult.size)
         assert(testResult[0].title.startsWith("dir"))
     }
 
@@ -100,16 +100,16 @@ class FilePickerModelTest : BaseTest() {
         var result = browserModel.dataset.test()
                 .value()
 
-        assertEquals(countDirs, result.size)
+        assertEquals(countDirs + countVideos, result.size)
 
         browserModel.refresh()
 
-        temporaryFolder.newFile("dir${countDirs + 1}")
-        temporaryFolder.root.listFiles().mapIndexed(this::addFileToProvider)
+        val added = temporaryFolder.newFile("dir${countDirs + 1}")
+        addFileToProvider(0, added)
 
         result = browserModel.dataset.test()
                 .value()
 
-        assertEquals(countDirs + 1, result.size)
+        assertEquals(countDirs + countVideos + 1, result.size)
     }
 }

@@ -3,6 +3,7 @@ package org.videolan.vlc.viewmodels.mobile
 import com.jraska.livedata.test
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.medialibrary.interfaces.media.Playlist
 import org.videolan.medialibrary.stubs.StubDataSource
@@ -27,7 +28,7 @@ class PlaylistViewModelTest : BaseTest() {
     }
 
     private fun setupViewModel(playlist: String, mediaIds: List<Long>? = null) {
-        parent = medialibrary.createPlaylist(playlist).apply { if (mediaIds != null) append(mediaIds) }
+        parent = medialibrary.createPlaylist(playlist, false, false).apply { if (mediaIds != null) append(mediaIds) }
         playlistViewModel = PlaylistViewModel(context, parent)
     }
 
@@ -84,8 +85,12 @@ class PlaylistViewModelTest : BaseTest() {
     fun whenParentHasMoreThanMaxSizeTracks_checkGetAllReturnsAll() {
         val count = MEDIALIBRARY_PAGE_SIZE * 3 + 1
         setupViewModel(PLAYLIST_PREFIX, createDummyAudios(count, "test"))
+        waitForProvidersData()
 
-        assertNotNull(playlistViewModel.tracksProvider.getAll()[count - 1])
+        val tracks = playlistViewModel.tracksProvider.getAll()
+        assertEquals(count, tracks.size)
+        assertNotNull(tracks[0])
+        assertNull(tracks[count - 1])
     }
 
     @Test
@@ -157,12 +162,12 @@ class PlaylistViewModelTest : BaseTest() {
         assertTrue(playlistViewModel.isEmpty())
 
         parent.append(createDummyAudios(3, "test"))
+        val tracks = playlistViewModel.tracksProvider.pagedList.test()
         playlistViewModel.refresh()
-
-        waitForProvidersData()
+        tracks.awaitNextValue(3, TimeUnit.SECONDS)
 
         assertFalse(playlistViewModel.isEmpty())
-        assertEquals(3, playlistViewModel.tracksProvider.pagedList.test().value().size)
+        assertEquals(3, tracks.value().size)
     }
 
     @Test
@@ -189,8 +194,9 @@ class PlaylistViewModelTest : BaseTest() {
         waitForProvidersData()
         assertTrue(playlistViewModel.isEmpty())
 
+        val tracks = playlistViewModel.tracksProvider.pagedList.test()
         playlistViewModel.restore()
-        waitForProvidersData()
+        tracks.awaitNextValue(3, TimeUnit.SECONDS)
         assertFalse(playlistViewModel.isEmpty())
     }
 

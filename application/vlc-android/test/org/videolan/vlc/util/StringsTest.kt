@@ -99,33 +99,34 @@ class StringsTest {
 
     @Test
     fun readableFileSize() {
-        var s = 10L.readableFileSize()
-        assertEquals(s, "10 B")
+        // The binary KiB/MiB/GiB formatter is gone. These same byte counts now
+        // follow decimal readableSize().
+        var s = 10L.readableSize()
+        assertEquals("10 B", s)
 
-        s = 1026L.readableFileSize()
-        assertEquals(s, "1 KiB")
+        s = 1026L.readableSize()
+        assertEquals("1 KB", s)
 
-        s = 10026L.readableFileSize()
-        assertEquals(s, "9.8 KiB")
+        s = 10026L.readableSize()
+        assertEquals("10 KB", s)
 
-        s = 100026L.readableFileSize()
-        assertEquals(s, "97.7 KiB")
+        s = 100026L.readableSize()
+        assertEquals("100 KB", s)
 
-        s = 1000026L.readableFileSize()
-        assertEquals(s, "976.6 KiB")
+        s = 1000026L.readableSize()
+        assertEquals("1 MB", s)
 
-        s = 10000026L.readableFileSize()
-        assertEquals(s, "9.5 MiB")
+        s = 10000026L.readableSize()
+        assertEquals("10 MB", s)
 
+        s = 1000000026L.readableSize()
+        assertEquals("1 GB", s)
 
-        s = 1000000026L.readableFileSize()
-        assertEquals(s, "953.7 MiB")
+        s = 10000000026L.readableSize()
+        assertEquals("10 GB", s)
 
-        s = 10000000026L.readableFileSize()
-        assertEquals(s, "9.3 GiB")
-
-        s = 100000000026L.readableFileSize()
-        assertEquals(s, "93.1 GiB")
+        s = 100000000026L.readableSize()
+        assertEquals("100 GB", s)
     }
 
     @Test
