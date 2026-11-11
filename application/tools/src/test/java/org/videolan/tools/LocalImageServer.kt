@@ -8,6 +8,7 @@ import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -26,6 +27,8 @@ internal class LocalImageServer : Closeable {
 
     val requests = AtomicInteger(0)
     val clientCloses = AtomicInteger(0)
+    private val requestPaths: MutableList<String> = Collections.synchronizedList(ArrayList())
+    fun paths(): List<String> = synchronized(requestPaths) { requestPaths.toList() }
     val handler = AtomicReference<(Session) -> Unit> { session ->
         session.respond(200, TINY_PNG)
         session.trackClientClose(3_000)
@@ -81,8 +84,9 @@ internal class LocalImageServer : Closeable {
         client.tcpNoDelay = true
         val input = client.getInputStream()
         val output = client.getOutputStream()
-        if (!readHeaders(input)) return
+        val path = readHeaders(input) ?: return
         requests.incrementAndGet()
+        requestPaths.add(path)
         handler.get().invoke(Session(this, client, input, output))
     }
 
@@ -101,6 +105,17 @@ internal class LocalImageServer : Closeable {
         private val input: InputStream,
         private val output: OutputStream,
     ) {
+        fun respondUntilClose(body: ByteArray) {
+            val header = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: image/png\r\n\r\n"
+            writeQuietly(header.toByteArray(Charsets.ISO_8859_1))
+            writeQuietly(body)
+            try {
+                output.flush()
+                socket.shutdownOutput()
+            } catch (ignored: Exception) {
+            }
+        }
+
         fun respond(code: Int, body: ByteArray, reason: String = "OK") {
             val header = "HTTP/1.1 $code $reason\r\nContent-Length: ${body.size}\r\n" +
                 "Connection: close\r\nContent-Type: image/png\r\n\r\n"
@@ -162,13 +177,13 @@ internal class LocalImageServer : Closeable {
     }
 }
 
-private fun readHeaders(input: InputStream): Boolean {
+private fun readHeaders(input: InputStream): String? {
     val out = ByteArrayOutputStream()
     var matched = 0
     val marker = byteArrayOf('\r'.code.toByte(), '\n'.code.toByte(), '\r'.code.toByte(), '\n'.code.toByte())
     while (matched < marker.size && out.size() < 16 * 1024) {
         val value = input.read()
-        if (value < 0) return false
+        if (value < 0) return null
         out.write(value)
         matched = if (value == marker[matched].toInt() && value < 256) {
             matched + 1
@@ -178,5 +193,7 @@ private fun readHeaders(input: InputStream): Boolean {
             0
         }
     }
-    return matched == marker.size
+    if (matched != marker.size) return null
+    val request = out.toString(Charsets.ISO_8859_1).lineSequence().firstOrNull().orEmpty()
+    return request.split(' ').getOrNull(1)
 }

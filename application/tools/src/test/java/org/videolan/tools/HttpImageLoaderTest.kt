@@ -10,8 +10,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -63,7 +66,7 @@ class HttpImageLoaderTest {
             first.await()
             fail("cancelled caller should not return a bitmap")
         } catch (expected: CancellationException) {
-            // The caller's wait is cancelled. The shared download keeps running.
+            // The only caller left, so the shared download is pruned.
         }
 
         release.countDown()
@@ -71,11 +74,10 @@ class HttpImageLoaderTest {
         assertEquals(0, HttpImageLoader.inFlightCount())
         assertEquals(0, HttpImageLoader.retainedCompletedBitmapCount())
         assertEquals(0, HttpImageLoader.openConnectionCount())
-        assertNotNull("successful download must still fill the cache", BitmapCache.getBitmapFromMemCache(url))
+        assertEquals(0, HttpImageLoader.waiterCount(url))
         assertTrue(server.awaitClientCloses(1, 3_000))
 
         BitmapCache.clear()
-        assertNull(BitmapCache.getBitmapFromMemCache(url))
         val retried = withTimeout(5_000) { HttpImageLoader.downloadBitmap(url) }
         assertNotNull(retried)
         assertEquals(1, retried!!.width)
@@ -164,6 +166,9 @@ class HttpImageLoaderTest {
         val waiterA = scopeA.async { HttpImageLoader.downloadBitmap(url) }
         val waiterB = scopeB.async { HttpImageLoader.downloadBitmap(url) }
         assertTrue(started.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        withTimeout(5_000) {
+            while (HttpImageLoader.waiterCount(url) < 2) delay(20)
+        }
         scopeA.cancel()
         try {
             waiterA.await()
@@ -265,7 +270,9 @@ class HttpImageLoaderTest {
         assertTrue("overall deadline returned too fast (${elapsedMs}ms)", elapsedMs >= 250)
         assertTrue("overall deadline did not abort the read (${elapsedMs}ms)", elapsedMs < 3_000)
         awaitIdle()
-        assertEquals(0, HttpImageLoader.openConnectionCount())
+        withTimeout(3_000) {
+            while (HttpImageLoader.openConnectionCount() != 0) delay(20)
+        }
         assertEquals(0, HttpImageLoader.inFlightCount())
         assertTrue(server.awaitClientCloses(1, 3_000))
 
@@ -315,6 +322,213 @@ class HttpImageLoaderTest {
         val retried = withTimeout(5_000) { HttpImageLoader.downloadBitmap(url) }
         assertNotNull(retried)
         assertEquals(2, server.requests.get())
+    }
+
+    @Test(timeout = 20_000)
+    fun queueWaitIsBoundedAndRetryReachesTheServer() = runBlocking {
+        val max = HttpImageLoader.MAX_CONCURRENT_DOWNLOADS
+        HttpImageLoader.callTimeoutMs = 15_000
+        HttpImageLoader.readTimeoutMs = 15_000
+        val release = CountDownLatch(1)
+        val arrived = CountDownLatch(max)
+        server.handler.set { session ->
+            if (arrived.count > 0) {
+                arrived.countDown()
+                release.await(10, java.util.concurrent.TimeUnit.SECONDS)
+            }
+            session.respond(200, LocalImageServer.TINY_PNG)
+            session.trackClientClose(3_000)
+        }
+        try {
+            val holders = (0 until max).map { index ->
+                async(Dispatchers.IO) { HttpImageLoader.downloadBitmap(server.url("/hold-$index.png")) }
+            }
+            assertTrue(arrived.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(max, server.requests.get())
+
+            HttpImageLoader.callTimeoutMs = 600
+            val startedAt = System.nanoTime()
+            assertNull(HttpImageLoader.downloadBitmap(server.url("/queued.png")))
+            val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000L
+            assertTrue("queued caller returned too fast (${elapsedMs}ms)", elapsedMs >= 250)
+            assertTrue("queued caller was not bounded by its deadline (${elapsedMs}ms)", elapsedMs < 3_000)
+            assertEquals(max, server.requests.get())
+            assertFalse(server.paths().contains("/queued.png"))
+            assertEquals(max, HttpImageLoader.inFlightCount())
+
+            HttpImageLoader.callTimeoutMs = 15_000
+            release.countDown()
+            holders.forEach { assertNotNull(it.await()) }
+            val retried = withTimeout(5_000) { HttpImageLoader.downloadBitmap(server.url("/queued.png")) }
+            assertNotNull(retried)
+            assertTrue(server.paths().contains("/queued.png"))
+            assertEquals(max + 1, server.requests.get())
+        } finally {
+            release.countDown()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun cancellingQueuedCallersFreesTheSlotForANewRequest() = runBlocking {
+        val max = HttpImageLoader.MAX_CONCURRENT_DOWNLOADS
+        HttpImageLoader.callTimeoutMs = 15_000
+        HttpImageLoader.readTimeoutMs = 15_000
+        val release = CountDownLatch(1)
+        val arrived = CountDownLatch(max)
+        server.handler.set { session ->
+            if (arrived.count > 0) {
+                arrived.countDown()
+                release.await(10, java.util.concurrent.TimeUnit.SECONDS)
+            }
+            session.respond(200, LocalImageServer.TINY_PNG)
+            session.trackClientClose(3_000)
+        }
+        val holderScopes = (0 until max).map { CoroutineScope(Job()) }
+        try {
+            val holders = holderScopes.mapIndexed { index, scope ->
+                scope.async { HttpImageLoader.downloadBitmap(server.url("/held-$index.png")) }
+            }
+            assertTrue(arrived.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val queuedScopes = (0 until 3).map { CoroutineScope(Job()) }
+            val queued = queuedScopes.mapIndexed { index, scope ->
+                scope.async { HttpImageLoader.downloadBitmap(server.url("/abandoned-$index.png")) }
+            }
+            withTimeout(5_000) {
+                while (HttpImageLoader.inFlightCount() < max + 3) delay(20)
+            }
+            queuedScopes.forEach { it.cancel() }
+            queued.forEach { runCatching { it.await() } }
+            withTimeout(5_000) {
+                while (HttpImageLoader.inFlightCount() > max) delay(20)
+            }
+            assertEquals(max, server.requests.get())
+            assertTrue(server.paths().none { it.startsWith("/abandoned-") })
+
+            holderScopes[0].cancel()
+            runCatching { holders[0].await() }
+            val fresh = withTimeout(5_000) { HttpImageLoader.downloadBitmap(server.url("/fresh.png")) }
+            assertNotNull(fresh)
+            assertTrue(server.paths().contains("/fresh.png"))
+            assertTrue(server.paths().none { it.startsWith("/abandoned-") })
+        } finally {
+            release.countDown()
+            holderScopes.forEach { it.cancel() }
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun oneQueuedWaiterSurvivesCancellationOfTheOther() = runBlocking {
+        val max = HttpImageLoader.MAX_CONCURRENT_DOWNLOADS
+        HttpImageLoader.callTimeoutMs = 15_000
+        HttpImageLoader.readTimeoutMs = 15_000
+        val release = CountDownLatch(1)
+        val arrived = CountDownLatch(max)
+        val url = server.url("/shared-queued.png")
+        server.handler.set { session ->
+            if (arrived.count > 0) {
+                arrived.countDown()
+                release.await(10, java.util.concurrent.TimeUnit.SECONDS)
+            }
+            session.respond(200, LocalImageServer.TINY_PNG)
+            session.trackClientClose(3_000)
+        }
+        val holderScopes = (0 until max).map { CoroutineScope(Job()) }
+        try {
+            holderScopes.forEachIndexed { index, scope ->
+                scope.async { HttpImageLoader.downloadBitmap(server.url("/block-$index.png")) }
+            }
+            assertTrue(arrived.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val scopeA = CoroutineScope(Job())
+            val scopeB = CoroutineScope(Job())
+            val waiterA = scopeA.async { HttpImageLoader.downloadBitmap(url) }
+            val waiterB = scopeB.async { HttpImageLoader.downloadBitmap(url) }
+            withTimeout(5_000) {
+                while (HttpImageLoader.waiterCount(url) < 2) delay(20)
+            }
+            scopeA.cancel()
+            runCatching { waiterA.await() }
+            assertEquals(1, HttpImageLoader.waiterCount(url))
+            assertEquals(max, server.requests.get())
+
+            holderScopes[0].cancel()
+            val bitmap = withTimeout(5_000) { waiterB.await() }
+            assertNotNull(bitmap)
+            assertEquals(1, server.paths().count { it == "/shared-queued.png" })
+        } finally {
+            release.countDown()
+            holderScopes.forEach { it.cancel() }
+        }
+    }
+
+    @Test
+    fun knownLengthBodyUsesOneExactBufferAndOverCapDoesNotRead() {
+        val payload = ByteArray(128) { 9 }
+        val exact = HttpImageLoader.readImageBytes(
+            ByteArrayInputStream(payload),
+            declaredLength = payload.size,
+            maxBytes = 1024,
+            deadlineNanos = System.nanoTime() + 5_000_000_000L,
+        )
+        assertNotNull(exact)
+        assertEquals(payload.size, exact!!.length)
+        assertEquals(payload.size, exact.bytes.size)
+
+        var reads = 0
+        val blocked = object : InputStream() {
+            override fun read(): Int {
+                reads++
+                return -1
+            }
+
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                reads++
+                return -1
+            }
+        }
+        assertNull(
+            HttpImageLoader.readImageBytes(
+                blocked,
+                declaredLength = 5_000_000,
+                maxBytes = 32,
+                deadlineNanos = Long.MAX_VALUE,
+            )
+        )
+        assertEquals(0, reads)
+
+        val grown = ByteArray(20 * 1024) { 4 }
+        val unknown = HttpImageLoader.readImageBytes(
+            ByteArrayInputStream(grown),
+            declaredLength = -1,
+            maxBytes = 64 * 1024,
+            deadlineNanos = System.nanoTime() + 5_000_000_000L,
+        )
+        assertNotNull(unknown)
+        assertEquals(grown.size, unknown!!.length)
+        assertTrue(unknown.bytes.size >= grown.size)
+        assertTrue(unknown.bytes.size <= 64 * 1024)
+        assertNull(
+            HttpImageLoader.readImageBytes(
+                ByteArrayInputStream(ByteArray(100)),
+                declaredLength = -1,
+                maxBytes = 32,
+                deadlineNanos = System.nanoTime() + 5_000_000_000L,
+            )
+        )
+    }
+
+    @Test(timeout = 20_000)
+    fun missingContentLengthStillUsesOneRequest() = runBlocking {
+        val url = server.url("/chunked.png")
+        server.handler.set { session ->
+            session.respondUntilClose(LocalImageServer.TINY_PNG)
+            session.trackClientClose(3_000)
+        }
+        val bitmap = HttpImageLoader.downloadBitmap(url)
+        assertNotNull(bitmap)
+        assertEquals(1, bitmap!!.width)
+        assertEquals(1, server.requests.get())
+        awaitIdle()
+        assertEquals(0, HttpImageLoader.openConnectionCount())
     }
 
     private fun stallFirstRequest(started: CountDownLatch, release: CountDownLatch) {
