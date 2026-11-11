@@ -268,6 +268,25 @@ class AccentPaletteTest {
     }
 
     @Test
+    fun customAccentNoteShowsOnlyBelowApi30ForNonPresets() {
+        val presets = intArrayOf(
+                STOCK_ORANGE, PRESET_BLUE, PRESET_GREEN, PRESET_RED, PRESET_PURPLE, PRESET_TEAL, PRESET_PINK,
+                0xFF2196F3.toInt(), 0xFF4CAF50.toInt(), 0xFFF44336.toInt(), 0xFF9C27B0.toInt(), 0xFF009688.toInt(), 0xFFE91E63.toInt(),
+                0x1565C0,
+        )
+        for (sdk in intArrayOf(17, 21, 27, 29)) {
+            assertTrue(customAccentNoteVisible(sdk, 0xFF123456.toInt()))
+            for (preset in presets) assertTrue("sdk $sdk ${hex(preset)}", !customAccentNoteVisible(sdk, preset))
+        }
+        for (sdk in intArrayOf(30, 33, 36)) {
+            assertTrue(!customAccentNoteVisible(sdk, 0xFF123456.toInt()))
+            assertTrue(!customAccentNoteVisible(sdk, PRESET_BLUE))
+        }
+        val strings = repoFile("application/resources/src/main/res/values/strings.xml").readText()
+        assertTrue(strings.contains("Icons, seek bars and checkboxes keep the default color on this Android version."))
+    }
+
+    @Test
     fun themeAttributeParserReadsCompiledQuestionMarkIds() {
         assertEquals(0x7f040156, parseThemeAttribute("?2130968918"))
         assertEquals(0x7f040156, parseThemeAttribute("?0x7f040156"))
