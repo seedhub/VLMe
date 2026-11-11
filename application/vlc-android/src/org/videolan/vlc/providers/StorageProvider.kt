@@ -40,26 +40,28 @@ class StorageProvider(context: Context, dataset: LiveDataset<MediaLibraryItem>, 
     override fun getFlags(interact: Boolean) = if (interact) MediaBrowser.Flag.NoSlavesAutodetect else 0
 
     override suspend fun browseRootImpl() {
-        val storages = DirectoryRepository.getInstance(context).getMediaDirectories()
         val customDirectories = DirectoryRepository.getInstance(context).getCustomDirectories()
-        var storage: Storage
+        val customPaths = customDirectories.map { it.path }
+        // Device roots only. Custom paths are added below, and a custom path must not
+        // count as a container of itself or the skip loop never adds one.
+        val deviceStorages = DirectoryRepository.getInstance(context).getMediaDirectories()
+                .filter { it !in customPaths }
         val storagesList = ArrayList<MediaLibraryItem>()
-        for (mediaDirLocation in storages) {
+        for (mediaDirLocation in deviceStorages) {
             val file = File(mediaDirLocation)
             if (!file.exists() || !file.canRead()) continue
             if (mediaDirLocation.isEmpty()) continue
-            storage = Storage(Uri.fromFile(File(mediaDirLocation)))
+            val storage = Storage(Uri.fromFile(File(mediaDirLocation)))
             if (AndroidDevices.EXTERNAL_PUBLIC_DIRECTORY == mediaDirLocation)
                 storage.name = context.getString(R.string.internal_memory)
             storagesList.add(storage)
         }
         customLoop@ for (customDir in customDirectories) {
-            for (mediaDirLocation in storages) {
+            for (mediaDirLocation in deviceStorages) {
                 if (mediaDirLocation.isEmpty()) continue
                 if (customDir.path.startsWith(mediaDirLocation)) continue@customLoop
             }
-            storage = Storage(customDir.path.toUri())
-            storagesList.add(storage)
+            storagesList.add(Storage(customDir.path.toUri()))
         }
         dataset.value = storagesList
     }
