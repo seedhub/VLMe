@@ -23,16 +23,29 @@
 
 package org.videolan.vlc.gui.preferences
 
+import android.app.Dialog
 import android.content.DialogInterface
 import android.content.SharedPreferences
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
+import android.view.View
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
+import androidx.core.widget.TextViewCompat
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceScreen
 import androidx.preference.TwoStatePreference
+import com.jaredrummler.android.colorpicker.ColorPickerDialog
+import com.jaredrummler.android.colorpicker.ColorPreferenceCompat
 import org.videolan.medialibrary.Tools
 import org.videolan.medialibrary.interfaces.Medialibrary
 import org.videolan.resources.AndroidDevices
@@ -59,11 +72,13 @@ import org.videolan.vlc.BuildConfig
 import org.videolan.vlc.R
 import org.videolan.vlc.gui.dialogs.SleepTimerDialog
 import org.videolan.vlc.gui.helpers.UiTools
+import org.videolan.vlc.gui.helpers.customAccentNoteVisible
 
 
 class PreferencesUi : BasePreferenceFragment(), SharedPreferences.OnSharedPreferenceChangeListener {
 
     private lateinit var settings: SharedPreferences
+    private val accentNoteListeners = java.util.WeakHashMap<Dialog, ViewTreeObserver.OnGlobalLayoutListener>()
     private lateinit var sleepTimerPreference: PreferenceScreen
     override fun getXml() = R.xml.preferences_ui
 
@@ -92,6 +107,7 @@ class PreferencesUi : BasePreferenceFragment(), SharedPreferences.OnSharedPrefer
         settings = Settings.getInstance(requireActivity())
         sleepTimerPreference = findPreference("default_sleep_timer")!!
         manageSleepTimerSummary()
+        refreshAccentNote()
     }
 
     private fun setupTheme() {
@@ -120,9 +136,11 @@ class PreferencesUi : BasePreferenceFragment(), SharedPreferences.OnSharedPrefer
     override fun onStart() {
         super.onStart()
         preferenceScreen.sharedPreferences!!.registerOnSharedPreferenceChangeListener(this)
+        requireActivity().supportFragmentManager.registerFragmentLifecycleCallbacks(accentDialogCallbacks, false)
     }
 
     override fun onStop() {
+        requireActivity().supportFragmentManager.unregisterFragmentLifecycleCallbacks(accentDialogCallbacks)
         super.onStop()
         preferenceScreen.sharedPreferences!!
                 .unregisterOnSharedPreferenceChangeListener(this)
@@ -165,6 +183,7 @@ class PreferencesUi : BasePreferenceFragment(), SharedPreferences.OnSharedPrefer
                 UiTools.restartDialog(requireActivity())
             }
             KEY_APP_THEME, KEY_APP_ACCENT_COLOR -> {
+                if (key == KEY_APP_ACCENT_COLOR) refreshAccentNote()
                 UiTools.restartDialog(requireActivity())
             }
             LIST_TITLE_ELLIPSIZE -> {
@@ -189,10 +208,106 @@ class PreferencesUi : BasePreferenceFragment(), SharedPreferences.OnSharedPrefer
         sleepTimerPreference.summary = getString(R.string.default_sleep_timer_summary, Tools.millisToString(interval), if (wait) "true" else "false", if (reset) "true" else "false")
     }
 
+    private fun refreshAccentNote() {
+        val preference = findPreference<Preference>(KEY_APP_ACCENT_COLOR) ?: return
+        val color = try {
+            settings.getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(requireContext(), R.color.orange800))
+        } catch (_: ClassCastException) {
+            return
+        }
+        preference.summary = if (customAccentNoteVisible(Build.VERSION.SDK_INT, color)) {
+            getString(R.string.accent_custom_color_limit)
+        } else {
+            null
+        }
+    }
+
+    private val accentDialogCallbacks = object : FragmentManager.FragmentLifecycleCallbacks() {
+        override fun onFragmentStarted(fm: FragmentManager, fragment: Fragment) {
+            if (fragment !is ColorPickerDialog) return
+            val preference = findPreference<ColorPreferenceCompat>(KEY_APP_ACCENT_COLOR) ?: return
+            if (fragment.tag != preference.fragmentTag) return
+            val dialog = fragment.dialog ?: return
+            if (accentNoteListeners.containsKey(dialog)) return
+            val listener = ViewTreeObserver.OnGlobalLayoutListener { syncAccentDialogNote(dialog) }
+            accentNoteListeners[dialog] = listener
+            dialog.setOnShowListener {
+                val decor = dialog.window?.decorView ?: return@setOnShowListener
+                decor.viewTreeObserver.addOnGlobalLayoutListener(listener)
+                syncAccentDialogNote(dialog)
+            }
+        }
+
+        override fun onFragmentDestroyed(fm: FragmentManager, fragment: Fragment) {
+            if (fragment !is ColorPickerDialog) return
+            val dialog = fragment.dialog ?: return
+            val listener = accentNoteListeners.remove(dialog) ?: return
+            val decor = dialog.window?.decorView ?: return
+            if (decor.viewTreeObserver.isAlive) decor.viewTreeObserver.removeOnGlobalLayoutListener(listener)
+        }
+    }
+
+    private fun syncAccentDialogNote(dialog: Dialog) {
+        try {
+            syncAccentDialogNoteInner(dialog)
+        } catch (_: RuntimeException) {
+        }
+    }
+
+    private fun syncAccentDialogNoteInner(dialog: Dialog) {
+        val column = pickerColumn(dialog.window?.decorView) ?: return
+        val existing = column.findViewWithTag<View>(ACCENT_NOTE_TAG)
+        if (!customAccentNoteVisible(Build.VERSION.SDK_INT, savedAccentColor())) {
+            if (existing != null) column.removeView(existing)
+            return
+        }
+        if (existing != null) return
+        val note = TextView(column.context)
+        note.tag = ACCENT_NOTE_TAG
+        note.text = getString(R.string.accent_custom_color_limit)
+        TextViewCompat.setTextAppearance(note, android.R.style.TextAppearance_Small)
+        val pad = (16 * column.resources.displayMetrics.density).toInt()
+        note.setPadding(pad, pad / 2, pad, pad / 4)
+        column.addView(note, 0)
+    }
+
+    private fun savedAccentColor(): Int {
+        return try {
+            settings.getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(requireContext(), R.color.orange800))
+        } catch (_: ClassCastException) {
+            ContextCompat.getColor(requireContext(), R.color.orange800)
+        }
+    }
+
+    private fun pickerColumn(root: View?): LinearLayout? {
+        if (root == null) return null
+        if (root is LinearLayout && root.orientation == LinearLayout.VERTICAL && containsPicker(root)) return root
+        if (root is ViewGroup) {
+            for (i in 0 until root.childCount) {
+                pickerColumn(root.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun containsPicker(group: ViewGroup): Boolean {
+        for (i in 0 until group.childCount) {
+            val child = group.getChildAt(i)
+            val name = child.javaClass.name
+            if (name.endsWith("ColorPickerView") || name.endsWith("NestedGridView")) return true
+            if (child is ViewGroup && containsPicker(child)) return true
+        }
+        return false
+    }
+
     private fun prepareLocaleList() {
         val localePair = LocaleUtils.getLocalesUsedInProject(BuildConfig.TRANSLATION_ARRAY, getString(R.string.device_default))
         val lp = findPreference<ListPreference>(KEY_SET_LOCALE)
         lp?.entries = localePair.localeEntries
         lp?.entryValues = localePair.localeEntryValues
+    }
+
+    private companion object {
+        const val ACCENT_NOTE_TAG = "vlme_accent_custom_note"
     }
 }
