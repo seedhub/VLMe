@@ -558,8 +558,11 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        // The player theme is dark even when the app is in day mode. Apply the
+        // accent before AppCompat inflates the decor so the palette is built
+        // from this theme's backgrounds.
         applyAccentOverlay()
+        super.onCreate(savedInstanceState)
 
         dialogsDelegate.observeDialogs(this, this)
         Util.checkCpuCompatibility(this)

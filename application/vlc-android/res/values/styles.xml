@@ -124,15 +124,15 @@
 
     <style name="VLC.Tooltip" parent="Widget.MaterialComponents.Tooltip">
         <item name="android:textAppearance">@style/TextAppearance.VLC.Tooltip</item>
-        <item name="backgroundTint">@color/orange800</item>
+        <item name="backgroundTint">?attr/colorPrimary</item>
     </style>
     <style name="VLC.Tooltip.Dark" parent="Widget.MaterialComponents.Tooltip">
         <item name="android:textAppearance">@style/TextAppearance.VLC.Tooltip</item>
-        <item name="backgroundTint">@color/orange500</item>
+        <item name="backgroundTint">?attr/colorPrimary</item>
     </style>
 
     <style name="TextAppearance.VLC.Tooltip" parent="TextAppearance.Material3.BodySmall">
-        <item name="android:textColor">@color/white</item>
+        <item name="android:textColor">?attr/colorOnPrimary</item>
         <item name="fontFamily">sans-serif-black</item>
     </style>
 
@@ -648,7 +648,7 @@
     </style>
 
     <style name="VLC.Tips.Button.Next" parent="Widget.MaterialComponents.Button">
-        <item name="android:textColor">@color/white</item>
+        <item name="android:textColor">?attr/colorOnPrimary</item>
     </style>
 
 
@@ -957,6 +957,24 @@
         <item name="donate_card">@color/accent_pink_light</item>
         <item name="bottom_navigation_focus">@color/accent_pink_focus_10</item>
         <item name="primary_focus">@color/accent_pink_focus_20</item>
+    </style>
+
+    <!-- Runtime palette. The color resources are replaced before this style is
+         applied, so any saved RGB — not only the six presets — becomes
+         colorPrimary / colorOnPrimary for the theme already in force. -->
+    <style name="ThemeOverlay.VLMe.Accent.Runtime">
+        <item name="colorPrimary">@color/vlme_accent_primary</item>
+        <item name="colorPrimaryDark">@color/vlme_accent_primary_dark</item>
+        <item name="colorSecondary">@color/vlme_accent_secondary</item>
+        <item name="colorOnPrimary">@color/vlme_accent_on_primary</item>
+        <item name="colorOnSecondary">@color/vlme_accent_on_primary</item>
+        <item name="colorAccent">@color/vlme_accent_primary</item>
+        <item name="colorControlHighlight">@color/vlme_accent_highlight</item>
+        <item name="android:colorControlHighlight" tools:targetApi="lollipop">@color/vlme_accent_highlight</item>
+        <item name="audio_browser_separator">@color/vlme_accent_separator</item>
+        <item name="donate_card">@color/vlme_accent_donate</item>
+        <item name="bottom_navigation_focus">@color/vlme_accent_focus_10</item>
+        <item name="primary_focus">@color/vlme_accent_focus_20</item>
     </style>
 
 </resources>

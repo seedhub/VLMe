@@ -161,4 +161,16 @@
     <color name="onboarding_grey_transparent_75">#BF011422</color>
     <color name="material_blue">#2196f3</color>
     <color name="material_pink">#e91e63</color>
+
+    <!-- Replaced at runtime by the accent palette. Defaults match stock orange
+         so a failed table install does not paint an undefined color. -->
+    <color name="vlme_accent_primary">#ff610a</color>
+    <color name="vlme_accent_on_primary">#ffffff</color>
+    <color name="vlme_accent_primary_dark">#ff7200</color>
+    <color name="vlme_accent_secondary">#ff610a</color>
+    <color name="vlme_accent_highlight">#ff610a</color>
+    <color name="vlme_accent_separator">#ff610a</color>
+    <color name="vlme_accent_donate">#ff8800</color>
+    <color name="vlme_accent_focus_10">#1aff610a</color>
+    <color name="vlme_accent_focus_20">#33ff610a</color>
 </resources>
