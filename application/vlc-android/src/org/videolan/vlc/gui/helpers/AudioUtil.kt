@@ -33,8 +33,10 @@ import androidx.core.content.contentValuesOf
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.videolan.libvlc.util.AndroidUtil
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.tools.BitmapCache
@@ -128,14 +130,44 @@ object AudioUtil {
         }
     }
 
-    //TODO Make it a suspend function to get rid of runBlocking {... }
-    @WorkerThread
-    fun readCoverBitmap(requestedPath: String?, width: Int): Bitmap? {
+    /**
+     * How long a synchronous caller (a content-provider binder thread, for example)
+     * may wait for remote art. Cache hits return immediately. A timeout returns null
+     * and does not invent a cached placeholder.
+     */
+    const val SYNC_REMOTE_ARTWORK_TIMEOUT_MS = 3_000L
+
+    /**
+     * Remote art suspends in [HttpImageLoader]. Local files are decoded on the caller.
+     * There is no hop onto the main thread.
+     */
+    suspend fun readCoverBitmap(requestedPath: String?, width: Int): Bitmap? {
         val path = requestedPath ?: return null
-        if (isSchemeHttpOrHttps(path)) return runBlocking(Dispatchers.Main) {
-            HttpImageLoader.downloadBitmap(path)
-        }
+        if (isSchemeHttpOrHttps(path)) return HttpImageLoader.downloadBitmap(path)
         return BitmapCache.getBitmapFromMemCache(path.removeFileScheme() + "_$width") ?: fetchCoverBitmap(path, width)
+    }
+
+    /**
+     * Bounded wait for callers that cannot suspend. Does not run the download on the main thread.
+     */
+    @WorkerThread
+    fun readCoverBitmapBlocking(
+        requestedPath: String?,
+        width: Int,
+        timeoutMs: Long = SYNC_REMOTE_ARTWORK_TIMEOUT_MS,
+    ): Bitmap? {
+        val path = requestedPath ?: return null
+        if (!isSchemeHttpOrHttps(path)) {
+            return BitmapCache.getBitmapFromMemCache(path.removeFileScheme() + "_$width") ?: fetchCoverBitmap(path, width)
+        }
+        BitmapCache.getBitmapFromMemCache(path)?.let { return it }
+        return try {
+            runBlocking {
+                withTimeout(timeoutMs) { HttpImageLoader.downloadBitmap(path) }
+            }
+        } catch (timeout: TimeoutCancellationException) {
+            null
+        }
     }
 
     @WorkerThread

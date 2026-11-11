@@ -21,6 +21,7 @@ import org.videolan.resources.AppContextProvider
 import org.videolan.tools.BitmapCache
 import org.videolan.tools.sanitizePath
 import org.videolan.vlc.BuildConfig
+import org.videolan.vlc.gui.helpers.AudioUtil.fetchCoverBitmap
 import org.videolan.vlc.gui.helpers.AudioUtil.readCoverBitmap
 import org.videolan.vlc.gui.helpers.BitmapUtil
 import org.videolan.vlc.gui.helpers.UiTools
@@ -49,8 +50,7 @@ object ThumbnailsProvider {
         return getComposedImage("videogroup:${group.title}", media, width)
     }
 
-    @WorkerThread
-    fun getMediaThumbnail(item: MediaWrapper, width: Int): Bitmap? {
+    suspend fun getMediaThumbnail(item: MediaWrapper, width: Int): Bitmap? {
         return if (isMediaVideo(item))
             getVideoThumbnail(item, width)
         else
@@ -80,7 +80,7 @@ object ThumbnailsProvider {
         val thumbPath = getMediaThumbnailPath(true, media) ?: return null
         val cacheBM = if (hasCache) BitmapCache.getBitmapFromMemCache(getMediaCacheKey(true, media, width.toString())) else null
         if (cacheBM != null) return cacheBM
-        if (hasCache && File(thumbPath).exists()) return readCoverBitmap(thumbPath, width)
+        if (hasCache && File(thumbPath).exists()) return fetchCoverBitmap(thumbPath, width)
         if (media.isThumbnailGenerated) return null
         var bitmap = synchronized(lock) {
             if (media.uri.scheme.isSchemeFile()) ThumbnailUtils.createVideoThumbnail(filePath, MediaStore.Video.Thumbnails.MINI_KIND) else null

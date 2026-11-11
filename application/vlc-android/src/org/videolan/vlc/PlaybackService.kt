@@ -35,6 +35,7 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.Typeface
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
@@ -139,7 +140,10 @@ import org.videolan.resources.util.launchForeground
 import org.videolan.resources.util.registerReceiverCompat
 import org.videolan.resources.util.startForegroundCompat
 import org.videolan.tools.AUDIO_RESUME_PLAYBACK
+import org.videolan.tools.BitmapCache
 import org.videolan.tools.DrawableCache
+import org.videolan.tools.HttpImageLoader
+import org.videolan.tools.PlaybackArtworkUpdater
 import org.videolan.tools.ENABLE_ANDROID_AUTO_SEEK_BUTTONS
 import org.videolan.tools.ENABLE_ANDROID_AUTO_SPEED_BUTTONS
 import org.videolan.tools.KEY_ALWAYS_FAST_SEEK
@@ -227,6 +231,24 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     private val callbacks = mutableListOf<Callback>()
     private val subtitleMessage = ArrayDeque<Pair<String,Long>>(1)
     private lateinit var cbActor: SendChannel<CbAction>
+    /**
+     * Remote cover loads stay off [cbActor]. State is published with cached or
+     * placeholder art; a single later update fills the art if this media is still playing.
+     */
+    private val artworkUpdater by lazy {
+        PlaybackArtworkUpdater<Bitmap>(
+            scope = lifecycleScope,
+            cached = { url -> BitmapCache.getBitmapFromMemCache(url) },
+            load = { url -> HttpImageLoader.downloadBitmap(url) },
+            isCurrent = { key -> currentPlaybackKey() == key },
+            onArtwork = { key, bitmap ->
+                if (bitmap != null && currentPlaybackKey() == key) {
+                    updateMetadata()
+                    if (notificationShowing) showNotification()
+                }
+            },
+        )
+    }
     var detectHeadset = true
     var headsetInserted = false
     private lateinit var wakeLock: PowerManager.WakeLock
@@ -1049,8 +1071,6 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
                     val album = if (metaData == null) mw.albumName else metaData.getString(MediaMetadataCompat.METADATA_KEY_ALBUM)
                     var cover = if (coverOnLockscreen && metaData != null)
                         metaData.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART) else null
-                    if (coverOnLockscreen && cover == null)
-                        cover = AudioUtil.readCoverBitmap(Uri.decode(mw.artworkMrl), 256)
                     if (cover == null || cover.isRecycled)
                         cover = ctx.getBitmapFromDrawable(R.drawable.ic_no_media)
 
@@ -1160,8 +1180,17 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
         cbActor.trySend(UpdateMeta)
     }
 
+    private fun currentPlaybackKey(): String? {
+        val media = playlistManager.getCurrentMedia() ?: return null
+        return media.uri?.toString() ?: media.location
+    }
+
     private suspend fun updateMetadataInternal() {
-        val media = playlistManager.getCurrentMedia() ?: return
+        val media = playlistManager.getCurrentMedia() ?: run {
+            artworkUpdater.cancel()
+            return
+        }
+        val mediaKey = currentPlaybackKey() ?: return
         if (!this::mediaSession.isInitialized) initMediaSession()
         val ctx = this@PlaybackService
         val length = length
@@ -1224,8 +1253,9 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
                 bob.putText(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, MediaUtils.getMediaAlbum(ctx, media))
             }
             if (Permissions.canReadStorage(ctx) && coverOnLockscreen) {
+                val remoteArt = isSchemeHttpOrHttps(media.artworkMrl)
                 val albumArtUri = when {
-                    isSchemeHttpOrHttps(media.artworkMrl) -> {
+                    remoteArt -> {
                         //ArtworkProvider will cache remote images
                         ArtworkProvider.buildUri(ctx, Uri.Builder()
                                 .appendPath(ArtworkProvider.REMOTE)
@@ -1241,15 +1271,22 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
                 }
                 bob.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, albumArtUri.toString())
                 if (!carMode) {
-                    val cover = AudioUtil.readCoverBitmap(Uri.decode(media.artworkMrl), 512)
+                    val decodedArt = media.artworkMrl?.let { Uri.decode(it) }
+                    // Remote bytes come from the cache or a later update. This block does not wait on the network.
+                    val cover = if (remoteArt) {
+                        artworkUpdater.request(mediaKey, decodedArt)
+                    } else {
+                        artworkUpdater.cancel()
+                        if (decodedArt != null) AudioUtil.readCoverBitmap(decodedArt, 512) else null
+                    }
                     val config = cover?.config
                     if (config != null)
                     //In case of format not supported
                         bob.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, cover.copy(config, false))
                     else
                         bob.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, ctx.getBitmapFromDrawable(R.drawable.ic_no_media, 512, 512))
-                }
-            }
+                } else artworkUpdater.cancel()
+            } else artworkUpdater.cancel()
             return@withContext bob.build()
         }
         if (this@PlaybackService::mediaSession.isInitialized) mediaSession.setMetadata(bob)
