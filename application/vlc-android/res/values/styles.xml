@@ -886,6 +886,8 @@
         <item name="colorPrimaryDark">@color/accent_blue_dark</item>
         <item name="colorSecondary">@color/accent_blue</item>
         <item name="colorAccent">@color/accent_blue</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">@color/accent_blue</item>
+        <item name="colorOnPrimary">@color/white</item>
         <item name="colorControlHighlight">@color/accent_blue</item>
         <item name="android:colorControlHighlight">@color/accent_blue</item>
         <item name="audio_browser_separator">@color/accent_blue</item>
@@ -899,6 +901,8 @@
         <item name="colorPrimaryDark">@color/accent_green_dark</item>
         <item name="colorSecondary">@color/accent_green</item>
         <item name="colorAccent">@color/accent_green</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">@color/accent_green</item>
+        <item name="colorOnPrimary">@color/white</item>
         <item name="colorControlHighlight">@color/accent_green</item>
         <item name="android:colorControlHighlight">@color/accent_green</item>
         <item name="audio_browser_separator">@color/accent_green</item>
@@ -912,6 +916,8 @@
         <item name="colorPrimaryDark">@color/accent_red_dark</item>
         <item name="colorSecondary">@color/accent_red</item>
         <item name="colorAccent">@color/accent_red</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">@color/accent_red</item>
+        <item name="colorOnPrimary">@color/white</item>
         <item name="colorControlHighlight">@color/accent_red</item>
         <item name="android:colorControlHighlight">@color/accent_red</item>
         <item name="audio_browser_separator">@color/accent_red</item>
@@ -925,6 +931,8 @@
         <item name="colorPrimaryDark">@color/accent_purple_dark</item>
         <item name="colorSecondary">@color/accent_purple</item>
         <item name="colorAccent">@color/accent_purple</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">@color/accent_purple</item>
+        <item name="colorOnPrimary">@color/white</item>
         <item name="colorControlHighlight">@color/accent_purple</item>
         <item name="android:colorControlHighlight">@color/accent_purple</item>
         <item name="audio_browser_separator">@color/accent_purple</item>
@@ -938,6 +946,8 @@
         <item name="colorPrimaryDark">@color/accent_teal_dark</item>
         <item name="colorSecondary">@color/accent_teal</item>
         <item name="colorAccent">@color/accent_teal</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">@color/accent_teal</item>
+        <item name="colorOnPrimary">@color/white</item>
         <item name="colorControlHighlight">@color/accent_teal</item>
         <item name="android:colorControlHighlight">@color/accent_teal</item>
         <item name="audio_browser_separator">@color/accent_teal</item>
@@ -951,6 +961,8 @@
         <item name="colorPrimaryDark">@color/accent_pink_dark</item>
         <item name="colorSecondary">@color/accent_pink</item>
         <item name="colorAccent">@color/accent_pink</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">@color/accent_pink</item>
+        <item name="colorOnPrimary">@color/white</item>
         <item name="colorControlHighlight">@color/accent_pink</item>
         <item name="android:colorControlHighlight">@color/accent_pink</item>
         <item name="audio_browser_separator">@color/accent_pink</item>
@@ -959,9 +971,102 @@
         <item name="primary_focus">@color/accent_pink_focus_20</item>
     </style>
 
-    <!-- Runtime palette. The color resources are replaced before this style is
-         applied, so any saved RGB — not only the six presets — becomes
-         colorPrimary / colorOnPrimary for the theme already in force. -->
+    <!-- Light fills for dark surfaces (#131313 and player #323232). Selected
+         in code from the activity's resolved backgrounds, not values-night,
+         so the player gets them while the app is in day mode. -->
+    <style name="ThemeOverlay.VLMe.Accent.Blue.Night">
+        <item name="colorPrimary">#FF569CED</item>
+        <item name="colorPrimaryDark">#FF000000</item>
+        <item name="colorSecondary">#FF569CED</item>
+        <item name="colorOnPrimary">#FF000000</item>
+        <item name="colorOnSecondary">#FF000000</item>
+        <item name="colorAccent">#FF569CED</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">#FF569CED</item>
+        <item name="colorControlHighlight">#FF569CED</item>
+        <item name="android:colorControlHighlight" tools:targetApi="lollipop">#FF569CED</item>
+        <item name="audio_browser_separator">#FF569CED</item>
+        <item name="donate_card">@color/accent_blue</item>
+        <item name="bottom_navigation_focus">#1A569CED</item>
+        <item name="primary_focus">#33569CED</item>
+    </style>
+    <style name="ThemeOverlay.VLMe.Accent.Green.Night">
+        <item name="colorPrimary">#FF40AF46</item>
+        <item name="colorPrimaryDark">#FF000000</item>
+        <item name="colorSecondary">#FF40AF46</item>
+        <item name="colorOnPrimary">#FF000000</item>
+        <item name="colorOnSecondary">#FF000000</item>
+        <item name="colorAccent">#FF40AF46</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">#FF40AF46</item>
+        <item name="colorControlHighlight">#FF40AF46</item>
+        <item name="android:colorControlHighlight" tools:targetApi="lollipop">#FF40AF46</item>
+        <item name="audio_browser_separator">#FF40AF46</item>
+        <item name="donate_card">@color/accent_green</item>
+        <item name="bottom_navigation_focus">#1A40AF46</item>
+        <item name="primary_focus">#3340AF46</item>
+    </style>
+    <style name="ThemeOverlay.VLMe.Accent.Red.Night">
+        <item name="colorPrimary">#FFE47B7B</item>
+        <item name="colorPrimaryDark">#FF000000</item>
+        <item name="colorSecondary">#FFE47B7B</item>
+        <item name="colorOnPrimary">#FF000000</item>
+        <item name="colorOnSecondary">#FF000000</item>
+        <item name="colorAccent">#FFE47B7B</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">#FFE47B7B</item>
+        <item name="colorControlHighlight">#FFE47B7B</item>
+        <item name="android:colorControlHighlight" tools:targetApi="lollipop">#FFE47B7B</item>
+        <item name="audio_browser_separator">#FFE47B7B</item>
+        <item name="donate_card">@color/accent_red</item>
+        <item name="bottom_navigation_focus">#1AE47B7B</item>
+        <item name="primary_focus">#33E47B7B</item>
+    </style>
+    <style name="ThemeOverlay.VLMe.Accent.Purple.Night">
+        <item name="colorPrimary">#FFC07EE8</item>
+        <item name="colorPrimaryDark">#FF000000</item>
+        <item name="colorSecondary">#FFC07EE8</item>
+        <item name="colorOnPrimary">#FF000000</item>
+        <item name="colorOnSecondary">#FF000000</item>
+        <item name="colorAccent">#FFC07EE8</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">#FFC07EE8</item>
+        <item name="colorControlHighlight">#FFC07EE8</item>
+        <item name="android:colorControlHighlight" tools:targetApi="lollipop">#FFC07EE8</item>
+        <item name="audio_browser_separator">#FFC07EE8</item>
+        <item name="donate_card">@color/accent_purple</item>
+        <item name="bottom_navigation_focus">#1AC07EE8</item>
+        <item name="primary_focus">#33C07EE8</item>
+    </style>
+    <style name="ThemeOverlay.VLMe.Accent.Teal.Night">
+        <item name="colorPrimary">#FF00AD97</item>
+        <item name="colorPrimaryDark">#FF000000</item>
+        <item name="colorSecondary">#FF00AD97</item>
+        <item name="colorOnPrimary">#FF000000</item>
+        <item name="colorOnSecondary">#FF000000</item>
+        <item name="colorAccent">#FF00AD97</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">#FF00AD97</item>
+        <item name="colorControlHighlight">#FF00AD97</item>
+        <item name="android:colorControlHighlight" tools:targetApi="lollipop">#FF00AD97</item>
+        <item name="audio_browser_separator">#FF00AD97</item>
+        <item name="donate_card">@color/accent_teal</item>
+        <item name="bottom_navigation_focus">#1A00AD97</item>
+        <item name="primary_focus">#3300AD97</item>
+    </style>
+    <style name="ThemeOverlay.VLMe.Accent.Pink.Night">
+        <item name="colorPrimary">#FFED6FA0</item>
+        <item name="colorPrimaryDark">#FF000000</item>
+        <item name="colorSecondary">#FFED6FA0</item>
+        <item name="colorOnPrimary">#FF000000</item>
+        <item name="colorOnSecondary">#FF000000</item>
+        <item name="colorAccent">#FFED6FA0</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">#FFED6FA0</item>
+        <item name="colorControlHighlight">#FFED6FA0</item>
+        <item name="android:colorControlHighlight" tools:targetApi="lollipop">#FFED6FA0</item>
+        <item name="audio_browser_separator">#FFED6FA0</item>
+        <item name="donate_card">@color/accent_pink</item>
+        <item name="bottom_navigation_focus">#1AED6FA0</item>
+        <item name="primary_focus">#33ED6FA0</item>
+    </style>
+
+    <!-- Runtime palette. Applied only after the installed color resources and
+         the resolved theme attributes match the computed palette. -->
     <style name="ThemeOverlay.VLMe.Accent.Runtime">
         <item name="colorPrimary">@color/vlme_accent_primary</item>
         <item name="colorPrimaryDark">@color/vlme_accent_primary_dark</item>
@@ -969,6 +1074,7 @@
         <item name="colorOnPrimary">@color/vlme_accent_on_primary</item>
         <item name="colorOnSecondary">@color/vlme_accent_on_primary</item>
         <item name="colorAccent">@color/vlme_accent_primary</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">@color/vlme_accent_primary</item>
         <item name="colorControlHighlight">@color/vlme_accent_highlight</item>
         <item name="android:colorControlHighlight" tools:targetApi="lollipop">@color/vlme_accent_highlight</item>
         <item name="audio_browser_separator">@color/vlme_accent_separator</item>

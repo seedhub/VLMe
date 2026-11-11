@@ -77,6 +77,36 @@ internal fun canonicalAccentSeed(stored: Int): Int? {
  * the darkest and lightest opaque surface, which is the pair of backgrounds
  * accent text can actually sit on.
  */
+/** True when the lightest resolved surface is a dark UI, including the player in day mode. */
+internal fun surfacesAreDark(raw: IntArray): Boolean {
+    val surfaces = prepareSurfaces(raw)
+    if (surfaces.isEmpty()) return false
+    return relativeLuminance(surfaces.maxBy { relativeLuminance(it) }) < 0.4
+}
+
+/**
+ * The runtime overlay is applied only when API 30+ actually resolved both
+ * colors. A loader object or a non-zero asset cookie is not acceptance.
+ */
+internal fun runtimeOverlayAccepted(
+        sdkInt: Int,
+        resourcePrimary: Int,
+        resourceOnPrimary: Int,
+        resolvedPrimary: Int,
+        resolvedOnPrimary: Int,
+        expected: AccentColors,
+): Boolean {
+    if (sdkInt < 30) return false
+    return resourcePrimary == expected.primary &&
+            resourceOnPrimary == expected.onPrimary &&
+            resolvedPrimary == expected.primary &&
+            resolvedOnPrimary == expected.onPrimary
+}
+
+internal fun paletteKey(seed: Int, surfaces: IntArray): String {
+    return seed.toUInt().toString(16) + ":" + surfaces.joinToString(",") { it.toUInt().toString(16) }
+}
+
 internal fun prepareSurfaces(raw: IntArray): List<Int> {
     val opaque = ArrayList<Int>()
     val partial = ArrayList<Int>()

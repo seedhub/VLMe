@@ -31,6 +31,7 @@ import android.util.AttributeSet
 import android.view.MenuInflater
 import android.view.View
 import android.view.ViewGroup
+import org.videolan.vlc.gui.helpers.AccentWidgets
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.view.ActionMode
 import androidx.appcompat.widget.Toolbar
@@ -42,6 +43,8 @@ import org.videolan.tools.getContextWithLocale
  * See https://stackoverflow.com/a/58004553
  */
 class BaseContextWrappingDelegate(private val superDelegate: AppCompatDelegate) : AppCompatDelegate() {
+
+    private var host: Context? = null
 
     override fun getSupportActionBar() = superDelegate.supportActionBar
 
@@ -69,15 +72,30 @@ class BaseContextWrappingDelegate(private val superDelegate: AppCompatDelegate) 
 
     override fun <T : View?> findViewById(id: Int) = superDelegate.findViewById<T>(id)
 
-    override fun setContentView(v: View?) = superDelegate.setContentView(v)
+    override fun setContentView(v: View?) {
+        superDelegate.setContentView(v)
+        tintContent()
+    }
 
-    override fun setContentView(resId: Int) = superDelegate.setContentView(resId)
+    override fun setContentView(resId: Int) {
+        superDelegate.setContentView(resId)
+        tintContent()
+    }
 
-    override fun setContentView(v: View?, lp: ViewGroup.LayoutParams?) = superDelegate.setContentView(v, lp)
+    override fun setContentView(v: View?, lp: ViewGroup.LayoutParams?) {
+        superDelegate.setContentView(v, lp)
+        tintContent()
+    }
 
-    override fun addContentView(v: View?, lp: ViewGroup.LayoutParams?) = superDelegate.addContentView(v, lp)
+    override fun addContentView(v: View?, lp: ViewGroup.LayoutParams?) {
+        superDelegate.addContentView(v, lp)
+        tintContent()
+    }
 
-    override fun attachBaseContext2(context: Context) = wrap(superDelegate.attachBaseContext2(super.attachBaseContext2(context)))
+    override fun attachBaseContext2(context: Context): Context {
+        host = context
+        return wrap(superDelegate.attachBaseContext2(super.attachBaseContext2(context)))
+    }
 
     override fun setTitle(title: CharSequence?) = superDelegate.setTitle(title)
 
@@ -96,7 +114,17 @@ class BaseContextWrappingDelegate(private val superDelegate: AppCompatDelegate) 
 
     override fun startSupportActionMode(callback: ActionMode.Callback) = superDelegate.startSupportActionMode(callback)
 
-    override fun installViewFactory() = superDelegate.installViewFactory()
+    override fun installViewFactory() {
+        // AppCompat installs on the activity inflater. A custom accent factory,
+        // when one is required, is set from applyAccentOverlay before this runs
+        // and AppCompat leaves an existing factory in place.
+        superDelegate.installViewFactory()
+    }
+
+    private fun tintContent() {
+        val content = (host as? android.app.Activity)?.findViewById<View>(android.R.id.content) ?: return
+        AccentWidgets.tintTree(content)
+    }
 
     override fun createView(parent: View?, name: String?, context: Context, attrs: AttributeSet): View? = superDelegate.createView(parent, name, context, attrs)
 
