@@ -20,15 +20,12 @@
 
 package org.videolan.vlc.repository
 
-import android.net.Uri
-import org.junit.runner.RunWith
-import org.powermock.core.classloader.annotations.PrepareForTest
-import org.powermock.modules.junit4.PowerMockRunner
-import org.videolan.vlc.ExternalMonitor
-
-
-@RunWith(PowerMockRunner::class)
-@PrepareForTest(Uri::class, ExternalMonitor::class)
+/**
+ * Every test method in this file is commented out. It is not a JUnit test class:
+ * @RunWith(PowerMockRunner) with zero @Test methods made JUnit report
+ * "No runnable methods". Restore @RunWith(PowerMockRunner::class) and
+ * @PrepareForTest(Uri::class, ExternalMonitor::class) together with any uncommented test.
+ */
 class BrowserFavRepositoryTest {
 //
 //    @Rule
