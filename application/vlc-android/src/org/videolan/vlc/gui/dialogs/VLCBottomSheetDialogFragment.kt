@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import org.videolan.resources.AndroidDevices
 import org.videolan.tools.Settings
 import org.videolan.vlc.R
+import org.videolan.vlc.gui.helpers.applyAccentOverlay
 import org.videolan.vlc.gui.video.VideoPlayerActivity.Companion.videoRemoteFlow
 import org.videolan.vlc.util.isTalkbackIsEnabled
 
@@ -30,6 +31,7 @@ abstract class VLCBottomSheetDialogFragment : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         if (Settings.showTvUi) {
             requireActivity().setTheme(R.style.Theme_VLC_Black_BottomSheet)
+            requireActivity().applyAccentOverlay()
         }
         super.onCreate(savedInstanceState)
     }

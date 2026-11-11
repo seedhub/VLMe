@@ -728,10 +728,10 @@
         <item>@string/report_a_crash</item>
     </string-array>
 
-    <!-- VLMe accent picker presets. These are the exact ints the picker stores
-         (see app:cpv_colorPresets on the preference) and the exact ints
-         accentOverlayRes() in UiTools.kt compares against. The first entry is
-         the default VLC orange, which maps to no overlay. -->
+    <!-- VLMe accent picker presets. Quick picks only: the dialog still accepts
+         any RGB (cpv_allowCustom). The first entry is stock VLC orange, which
+         keeps the base theme. Other values, including older Material 500
+         ints, are turned into a light/dark palette at startup. -->
     <integer-array name="accent_color_presets">
         <item>@color/orange800</item>
         <item>@color/accent_blue</item>

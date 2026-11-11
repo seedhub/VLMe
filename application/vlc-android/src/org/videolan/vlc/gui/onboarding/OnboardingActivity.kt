@@ -38,6 +38,7 @@ import org.videolan.vlc.BuildConfig
 import org.videolan.vlc.MediaParsingService
 import org.videolan.vlc.R
 import org.videolan.vlc.gui.MainActivity
+import org.videolan.vlc.gui.helpers.applyAccentOverlay
 import org.videolan.vlc.gui.helpers.hf.NotificationDelegate.Companion.getNotificationPermission
 import org.videolan.vlc.gui.helpers.hf.StoragePermissionsDelegate.Companion.getStoragePermission
 import org.videolan.vlc.util.Permissions
@@ -49,6 +50,7 @@ class OnboardingActivity : AppCompatActivity(), OnboardingFragmentListener {
     private lateinit var nextButton: Button
     private val viewModel: OnboardingViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyAccentOverlay()
         if (AndroidDevices.canUseSystemNightMode()) enableEdgeToEdge()
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = false
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
