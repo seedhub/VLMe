@@ -1,7 +1,9 @@
 package org.videolan.vlc.viewmodels.browser
 
+import android.net.Uri
 import android.os.Handler
 import com.jraska.livedata.test
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import junit.framework.Assert.assertEquals
@@ -29,24 +31,33 @@ class FilePickerModelTest : BaseTest() {
 
     private lateinit var browserModel: BrowserModel
     private lateinit var browserProvider: BrowserProvider
+    private var browseListener: MediaBrowser.EventListener? = null
 
     private val countVideos = 2
     private val countDirs = 4
 
     init {
-        // BrowserHandler mocked.
-        val handler: Handler = mockk()
-
         BrowserProvider.overrideCreator = false
-        BrowserProvider.registerCreator {
-            mediaBrowser = spyk(MediaBrowser(mockedLibVlc, null, handler))
-            mediaBrowser
-        }
         BrowserProvider.registerCreator(clazz = CoroutineContextProvider::class.java) { org.videolan.vlc.util.TestCoroutineContextProvider() }
     }
 
     override fun beforeTest() {
         super.beforeTest()
+        // One MediaBrowser is cached for every provider. Replace it for this test, then
+        // lock the creator so BrowserProvider.initBrowser cannot swap in a real browser.
+        val handler: Handler = mockk()
+        BrowserProvider.overrideCreator = true
+        BrowserProvider.registerCreator {
+            mediaBrowser = spyk(MediaBrowser(mockedLibVlc, null, handler))
+            every { mediaBrowser.changeEventListener(any()) } answers {
+                browseListener = args[0] as? MediaBrowser.EventListener
+            }
+            // Real libvlc browse never runs in this JVM. The test fires onBrowseEnd itself.
+            every { mediaBrowser.browse(any<Uri>(), any()) } answers { }
+            every { mediaBrowser.browse(any<String>(), any()) } answers { }
+            mediaBrowser
+        }
+        BrowserProvider.overrideCreator = false
         dummyUrl = temporaryFolder.root.absolutePath
 
         browserModel = BrowserModel(application, dummyUrl, TYPE_PICKER, false, org.videolan.vlc.providers.PickerType.SUBTITLE, org.videolan.vlc.util.TestCoroutineContextProvider())
@@ -58,6 +69,11 @@ class FilePickerModelTest : BaseTest() {
     private fun setupTestFiles() {
         (0 until countDirs).map { temporaryFolder.newFile("dir$it") }
         (0 until countVideos).map { temporaryFolder.newFile("video$it.mp4") }
+    }
+
+    private fun finishBrowse() {
+        browseListener?.onBrowseEnd()
+        browseListener = null
     }
 
     private fun addFileToProvider(i: Int, file: File) {
@@ -78,6 +94,7 @@ class FilePickerModelTest : BaseTest() {
 
     @Test
     fun whenBrowseRootAndRootEmpty_checkTheFolderIsEmpty() {
+        finishBrowse()
 
         browserModel.dataset.test()
                 .assertValue { it.isEmpty() }
@@ -87,6 +104,8 @@ class FilePickerModelTest : BaseTest() {
     fun whenBrowseRootAndBrowseEndEventTriggered_ensureLoadingIsSetToFalse() {
         browserModel.loading.test()
                 .assertValue(true)
+
+        finishBrowse()
 
         browserModel.loading.test()
                 .awaitValue()

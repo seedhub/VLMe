@@ -1,12 +1,14 @@
 package org.videolan.vlc.viewmodels.browser
 
+import android.net.Uri
 import android.os.Handler
+import android.os.Looper
 import androidx.core.net.toUri
-import androidx.lifecycle.MutableLiveData
 import com.jraska.livedata.test
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
+import kotlinx.coroutines.flow.MutableStateFlow
 import junit.framework.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -15,7 +17,9 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.stubs.StubMedia
 import org.videolan.libvlc.util.MediaBrowser
+import org.robolectric.Shadows
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
+import org.videolan.medialibrary.media.MediaLibraryItem
 import org.videolan.medialibrary.stubs.StubMediaWrapper
 import org.videolan.tools.CoroutineContextProvider
 import org.videolan.tools.Settings
@@ -44,23 +48,34 @@ class FileBrowserModelTest : BaseTest() {
 
     private val countVideos = 2
     private val countDirs = 4
+    private var browseListener: MediaBrowser.EventListener? = null
+    private var scriptedPath: String? = null
+    private var scriptedChildren: List<File> = emptyList()
 
     init {
         BrowserFavRepository.applyMock(mockedFavoritesRepo)
-
-        // BrowserHandler mocked.
-        val handler: Handler = mockk()
-
         BrowserProvider.overrideCreator = false
-        BrowserProvider.registerCreator {
-            this@FileBrowserModelTest.mediaBrowser = spyk(MediaBrowser(mockedLibVlc, null, handler))
-            mediaBrowser
-        }
         BrowserProvider.registerCreator(clazz = CoroutineContextProvider::class.java) { TestCoroutineContextProvider() }
     }
 
     override fun beforeTest() {
         super.beforeTest()
+        val handler: Handler = mockk()
+        BrowserProvider.overrideCreator = true
+        BrowserProvider.registerCreator {
+            this@FileBrowserModelTest.mediaBrowser = spyk(MediaBrowser(mockedLibVlc, null, handler))
+            every { mediaBrowser.changeEventListener(any()) } answers {
+                browseListener = args[0] as? MediaBrowser.EventListener
+            }
+            every { mediaBrowser.browse(any<Uri>(), any()) } answers {
+                emitBrowse(args[0] as Uri)
+            }
+            every { mediaBrowser.browse(any<String>(), any()) } answers {
+                emitBrowse((args[0] as String).toUri())
+            }
+            mediaBrowser
+        }
+        BrowserProvider.overrideCreator = false
         setupTestFiles()
     }
 
@@ -81,8 +96,33 @@ class FileBrowserModelTest : BaseTest() {
         browserProvider.addMedia(StubMediaWrapper(t))
     }
 
+    private fun emitBrowse(uri: Uri) {
+        val listener = browseListener ?: return
+        val path = uri.path
+        val children = when {
+            scriptedPath != null && path == scriptedPath -> scriptedChildren
+            path != null && File(path).isDirectory -> File(path).listFiles()?.sortedBy { it.name }.orEmpty()
+            else -> emptyList()
+        }
+        // Deliver after browse() returns. Calling the listener inline re-enters the
+        // provider actor that is waiting on this browse and the folder map never updates.
+        Handler(Looper.getMainLooper()).post {
+            children.forEachIndexed { index, file ->
+                val media = StubMedia(mockedLibVlc, file.toURI().toString()).apply {
+                    type = if (file.name.endsWith(".mp4")) IMedia.Type.File else IMedia.Type.Directory
+                }
+                listener.onMediaAdded(index, media)
+            }
+            listener.onBrowseEnd()
+        }
+    }
+
     private fun fillFilesInDataset(file: File) {
-        file.listFiles().sorted().mapIndexed(this::addFileToProvider)
+        val files = file.listFiles()?.sortedBy { it.name }.orEmpty()
+        files.forEachIndexed(this::addFileToProvider)
+        scriptedChildren = files
+        browserProvider.parseSubDirectories()
+        repeat(8) { Shadows.shadowOf(Looper.getMainLooper()).idle() }
     }
 
     private fun getFakeBrowserFav(index: Int): org.videolan.vlc.mediadb.models.BrowserFav {
@@ -122,14 +162,12 @@ class FileBrowserModelTest : BaseTest() {
 
         val internalStorage = browserModel.dataset.test()
                 .awaitValue()
-                .value()[0]
+                .value()[0] as MediaWrapper
 
-        Thread.sleep(1000)
-        // TODO Hack because parseSubDirectories is called twice for some reason.
+        scriptedPath = internalStorage.uri.path
         fillFilesInDataset(temporaryFolder.root)
-        Thread.sleep(1000)
 
-        assertFalse(browserModel.isFolderEmpty(internalStorage as MediaWrapper))
+        assertFalse(browserModel.isFolderEmpty(internalStorage))
     }
 
     @Test
@@ -138,40 +176,45 @@ class FileBrowserModelTest : BaseTest() {
 
         val internalStorage = browserModel.dataset.test()
                 .awaitValue()
-                .value()[0]
+                .value()[0] as MediaWrapper
 
-        Thread.sleep(1000)
+        scriptedPath = internalStorage.uri.path
         fillFilesInDataset(temporaryFolder.root)
-        Thread.sleep(1000)
 
-        browserModel.saveList(internalStorage as MediaWrapper)
+        browserModel.saveList(internalStorage)
 
         initBrowserModel(internalStorage.uri.toString(), false)
+        repeat(8) { Shadows.shadowOf(Looper.getMainLooper()).idle() }
 
-        val testResult = browserModel.dataset.test().value()
+        val testResult = browserModel.dataset.test().awaitValue().value()
 
         assertEquals(countDirs + countVideos, testResult.size)
     }
 
     @Test
     fun whenAtRootAndHasLocalFavorite_checkDataSetContainsIt() {
-        val liveFavorites: MutableLiveData<List<org.videolan.vlc.mediadb.models.BrowserFav>> = MutableLiveData()
-        every { mockedFavoritesRepo.localFavorites } returns liveFavorites
+        // The file browser screen shows favorites in their own list, fed by getFavDao().
+        val favorites = MutableStateFlow(emptyList<org.videolan.vlc.mediadb.models.BrowserFav>())
+        every { mockedFavoritesRepo.getFavDao() } returns favorites
 
         initBrowserModel(null, showHiddenFiles = false)
 
-        val noFav = browserModel.dataset.test()
+        val storage = browserModel.dataset.test()
                 .awaitValue()
                 .value()
+        assertEquals(1, storage.size)
 
-        assertEquals(1, noFav.size)
+        val favorite = getFakeBrowserFav(0)
+        favorites.value = listOf(favorite)
+        val favoritesModel = BrowserFavoritesModel(context)
 
-        liveFavorites.value = listOf(getFakeBrowserFav(0))
-
-        val hasFav = browserModel.dataset.test()
+        val shown = favoritesModel.favorites.test()
                 .awaitValue()
                 .value()
-
-        assertEquals(3, hasFav.size)
+        assertEquals(1, shown.size)
+        assertEquals("vid_0", shown[0].title)
+        assertEquals(favorite.uri.path, (shown[0] as MediaWrapper).uri.path)
+        assertTrue(shown[0].hasStateFlags(MediaLibraryItem.FLAG_FAVORITE))
+        assertEquals(1, browserModel.dataset.test().value().size)
     }
 }
