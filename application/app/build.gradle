@@ -140,6 +140,9 @@ android {
         disable 'MissingTranslation', 'ExtraTranslation'
     }
     namespace = 'org.videolan.mobile.app'
+    buildFeatures {
+        buildConfig = true
+    }
     // make per-variant version code
     applicationVariants.all { variant ->
         //Custom APK name and versionCode

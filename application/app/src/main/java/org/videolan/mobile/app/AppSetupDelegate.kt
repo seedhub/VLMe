@@ -50,7 +50,7 @@ import org.videolan.tools.KEY_PERSISTENT_INCOGNITO
 import org.videolan.tools.KEY_SET_LOCALE
 import org.videolan.tools.Settings
 import org.videolan.tools.putSingle
-import org.videolan.vlc.BuildConfig
+import org.videolan.vlc.BuildConfig as VlcBuildConfig
 import org.videolan.vlc.gui.helpers.NotificationHelper
 import org.videolan.vlc.util.DialogDelegate
 import org.videolan.vlc.util.FontCache
@@ -81,10 +81,10 @@ class AppSetupDelegate : AppDelegate,
         // Service loaders
         FactoryManager.registerFactory(IMediaFactory.factoryId, MediaFactory())
         FactoryManager.registerFactory(ILibVLCFactory.factoryId, LibVLCFactory())
-        System.setProperty(DEBUG_PROPERTY_NAME, DEBUG_PROPERTY_VALUE_ON)
+        applyCoroutineDebugProperty(org.videolan.mobile.app.BuildConfig.DEBUG)
 
         val settings = Settings.getInstance(this)
-        if (BuildConfig.DEBUG) {
+        if (VlcBuildConfig.DEBUG) {
             if (Settings.showTvUi) {
                 // Register movipedia to resume tv shows/movies
                 setupContentResolvers()
@@ -152,4 +152,9 @@ class AppSetupDelegate : AppDelegate,
         }
 
     }
+}
+
+/** Sets [DEBUG_PROPERTY_NAME] only for a debug build. Release leaves the property unset. */
+internal inline fun applyCoroutineDebugProperty(debug: Boolean) {
+    if (debug) System.setProperty(DEBUG_PROPERTY_NAME, DEBUG_PROPERTY_VALUE_ON)
 }
