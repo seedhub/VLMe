@@ -685,7 +685,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
         service.executeUpdate(true)
     }
 
-    fun saveMediaMeta(end:Boolean = false) = launch(start = CoroutineStart.UNDISPATCHED) outerLaunch@ {
+    fun saveMediaMeta(end:Boolean = false, fromPeriodicUpdate:Boolean = false) = launch(start = CoroutineStart.UNDISPATCHED) outerLaunch@ {
         if (endReachedFor != null && endReachedFor == getCurrentMedia()?.uri.toString() && !end) return@outerLaunch
         val titleIdx = player.getTitleIdx()
         val currentMedia = getCurrentMedia() ?: return@outerLaunch
@@ -697,7 +697,6 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
         val canSwitchToVideo = player.canSwitchToVideo()
         launch(Dispatchers.IO) innerLaunch@ {
             val media = if (entryUrl != null) medialibrary.getMedia(entryUrl) else medialibrary.findMedia(currentMedia) ?: return@innerLaunch
-            if (showAudioPlayer.value != true) BaseBrowserFragment.needRefresh.postValue(true)
             if (media.id == 0L) return@innerLaunch
             if (titleIdx > 0) media.setLongMeta(MediaWrapper.META_TITLE, titleIdx.toLong())
             //checks if the [MediaPlayer] has not been reset in the meantime to prevent saving 0
@@ -734,6 +733,12 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                     }
                 }
             if (media.type != MediaWrapper.TYPE_VIDEO && !canSwitchToVideo && !media.isPodcast) skipMediaUpdateRefresh = true
+            // File browser does not listen to medialibrary changes. Re-browse only after a
+            // real save (stop, end, media change) so the played marker matches the write.
+            // The 5s TimeChanged tick must not reload the list; the playing row already
+            // follows PositionChanged.
+            if (shouldRefreshBrowserOnMetaSave(showAudioPlayer.value == true, fromPeriodicUpdate))
+                BaseBrowserFragment.needRefresh.postValue(true)
 
         }
     }
@@ -1284,7 +1289,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                     val now = System.currentTimeMillis()
                     if (now - lastTimeMetaSaved > 5000L){
                         lastTimeMetaSaved = now
-                        saveMediaMeta()
+                        saveMediaMeta(fromPeriodicUpdate = true)
                     }
                 }
                 MediaPlayer.Event.SeekableChanged -> {
@@ -1371,6 +1376,10 @@ internal class PositionSaveThrottle(
         nextPeriodicSaveAtMs = nowMs + intervalMs
     }
 }
+
+/** True for a stop, end, or media change while the audio player is not showing. */
+internal fun shouldRefreshBrowserOnMetaSave(audioPlayerShown: Boolean, fromPeriodicUpdate: Boolean): Boolean =
+        !audioPlayerShown && !fromPeriodicUpdate
 
 class ABRepeat(var start: Long = -1L, var stop: Long = -1L)
 class DelayValues(var start: Long = -1L, var stop: Long = -1L)
