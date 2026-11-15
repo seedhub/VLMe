@@ -210,6 +210,9 @@ import kotlin.math.absoluteValue
 
 private const val TAG = "VLC/PlaybackService"
 
+/** Lock screen, notification, and media session remote art. Lists stay at 150dp. */
+private const val REMOTE_ARTWORK_EDGE_PX = 512
+
 class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineScope, SchedulerCallback {
     override val coroutineContext = Dispatchers.IO + SupervisorJob()
     lateinit var scheduler: LifecycleAwareScheduler
@@ -247,8 +250,8 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     private val artworkUpdater by lazy {
         PlaybackArtworkUpdater<Bitmap>(
             scope = lifecycleScope,
-            cached = { url -> BitmapCache.getBitmapFromMemCache(url) },
-            load = { url -> HttpImageLoader.downloadBitmap(url) },
+            cached = { url -> BitmapCache.getBitmapFromMemCache(HttpImageLoader.cacheKey(url, REMOTE_ARTWORK_EDGE_PX)) },
+            load = { url -> HttpImageLoader.downloadBitmap(url, REMOTE_ARTWORK_EDGE_PX) },
             isCurrent = { key -> currentPlaybackKey() == key },
             onArtwork = { key, bitmap ->
                 if (bitmap != null && currentPlaybackKey() == key) {

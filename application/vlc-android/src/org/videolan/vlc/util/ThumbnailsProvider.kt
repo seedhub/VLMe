@@ -19,6 +19,7 @@ import org.videolan.medialibrary.interfaces.media.VideoGroup
 import org.videolan.medialibrary.media.MediaLibraryItem
 import org.videolan.resources.AppContextProvider
 import org.videolan.tools.BitmapCache
+import org.videolan.tools.HttpImageLoader
 import org.videolan.tools.sanitizePath
 import org.videolan.vlc.BuildConfig
 import org.videolan.vlc.gui.helpers.AudioUtil.fetchCoverBitmap
@@ -54,7 +55,7 @@ object ThumbnailsProvider {
         return if (isMediaVideo(item))
             getVideoThumbnail(item, width)
         else
-            readCoverBitmap(Uri.decode(item.artworkMrl), width)
+            readCoverBitmap(Uri.decode(item.artworkMrl), artworkEdge(item.artworkMrl, width))
     }
 
     fun isMediaVideo(item: MediaWrapper) = item.type == MediaWrapper.TYPE_VIDEO && item.artworkMrl.isNullOrEmpty()
@@ -204,12 +205,18 @@ object ThumbnailsProvider {
         return cs
     }
 
+    /** Browser rows and grids keep the 150dp remote decode. Playback asks for its own edge. */
+    private fun artworkEdge(artworkMrl: String?, requestedWidth: Int): Int {
+        val decoded = artworkMrl?.let { Uri.decode(it) }
+        return if (isSchemeHttpOrHttps(decoded)) HttpImageLoader.listDecodeEdgePx() else requestedWidth
+    }
+
     suspend fun obtainBitmap(item: MediaLibraryItem, width: Int) = withContext(Dispatchers.IO) {
         when (item) {
             is MediaWrapper -> getMediaThumbnail(item, width)
             is Folder -> getFolderThumbnail(item, width)
             is VideoGroup -> getVideoGroupThumbnail(item, width)
-            else -> readCoverBitmap(Uri.decode(item.artworkMrl), width)
+            else -> readCoverBitmap(Uri.decode(item.artworkMrl), artworkEdge(item.artworkMrl, width))
         }
     }
 

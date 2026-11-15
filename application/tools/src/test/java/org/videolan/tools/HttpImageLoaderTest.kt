@@ -1,6 +1,7 @@
 package org.videolan.tools
 
 import android.graphics.Bitmap
+import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -27,6 +29,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowBitmapFactory
 import java.lang.ref.WeakReference
+import kotlin.math.max
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -213,6 +216,47 @@ class HttpImageLoaderTest {
             loaded
         }
         assertCollected(refs)
+    }
+
+    @Test
+    fun request512DecodesLargerThanTheListCap() {
+        val bytes = solidPng(640, 400)
+        val listEdge = HttpImageLoader.listDecodeEdgePx()
+        assertEquals(HttpImageLoader.MAX_DECODE_EDGE_DP.dp, listEdge)
+        val list = HttpImageLoader.decodeSampled(bytes, listEdge)
+        val playback = HttpImageLoader.decodeSampled(bytes, 512)
+        assertNotNull(list)
+        assertNotNull(playback)
+        val listPx = max(list!!.width, list.height)
+        val playbackPx = max(playback!!.width, playback.height)
+        assertTrue("512 decode $playbackPx should exceed the 150dp cap $listEdge", playbackPx > listEdge)
+        assertTrue("512 decode $playbackPx should exceed the list decode $listPx", playbackPx > listPx)
+    }
+
+    @Test(timeout = 20_000)
+    fun listAndPlaybackSizesAreCachedSeparately() = runBlocking {
+        val url = server.url("/wide.png")
+        val bytes = solidPng(640, 400)
+        server.handler.set { session ->
+            session.respond(200, bytes)
+            session.trackClientClose(3_000)
+        }
+        val listEdge = HttpImageLoader.listDecodeEdgePx()
+        val list = HttpImageLoader.downloadBitmap(url)
+        val playback = HttpImageLoader.downloadBitmap(url, 512)
+        assertNotNull(list)
+        assertNotNull(playback)
+        assertEquals(HttpImageLoader.decodeSampled(bytes, listEdge)!!.width, list!!.width)
+        assertEquals(HttpImageLoader.decodeSampled(bytes, 512)!!.width, playback!!.width)
+        assertTrue(max(playback.width, playback.height) > listEdge)
+        assertTrue(max(list.width, list.height) < max(playback.width, playback.height))
+        assertNotSame(list, playback)
+        assertSame(list, BitmapCache.getBitmapFromMemCache(HttpImageLoader.cacheKey(url, listEdge)))
+        assertSame(playback, BitmapCache.getBitmapFromMemCache(HttpImageLoader.cacheKey(url, 512)))
+        assertNull(BitmapCache.getBitmapFromMemCache(url))
+        assertSame(list, HttpImageLoader.downloadBitmap(url))
+        assertSame(playback, HttpImageLoader.downloadBitmap(url, 512))
+        assertEquals(2, server.requests.get())
     }
 
     @Test
@@ -547,6 +591,15 @@ class HttpImageLoaderTest {
         withTimeout(5_000) {
             while (HttpImageLoader.inFlightCount() != 0) delay(20)
         }
+    }
+
+    private fun solidPng(width: Int, height: Int): ByteArray {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(0xFF336699.toInt())
+        val out = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        bitmap.recycle()
+        return out.toByteArray()
     }
 
     private suspend fun loadWeak(url: String): WeakReference<Bitmap> {
