@@ -115,12 +115,24 @@ class PlayerController(val context: Context) : IVLCVout.Callback, MediaPlayer.Ev
         release(mp)
     }
 
+    /** Set by [PlaylistManager] so a user or A-B seek is persisted. Progress ticks do not call this. */
+    internal var onSeek: (() -> Unit)? = null
+
     fun setPosition(position: Float) {
-        if (seekable && mediaplayer.hasMedia() && !mediaplayer.isReleased) mediaplayer.position = position
+        if (seekable && mediaplayer.hasMedia() && !mediaplayer.isReleased) {
+            mediaplayer.position = position
+            val length = progress.value?.length ?: 0L
+            if (length > 0L) updateProgress(newTime = (position * length).toLong())
+            onSeek?.invoke()
+        }
     }
 
     fun setTime(time: Long, fast:Boolean = false) {
-        if (seekable && mediaplayer.hasMedia() && !mediaplayer.isReleased) mediaplayer.setTime(time, fast)
+        if (seekable && mediaplayer.hasMedia() && !mediaplayer.isReleased) {
+            mediaplayer.setTime(time, fast)
+            updateProgress(newTime = time)
+            onSeek?.invoke()
+        }
     }
 
     fun isPlaying() = playbackState == PlaybackStateCompat.STATE_PLAYING

@@ -129,7 +129,9 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     }
 
     private val medialibrary by lazy(LazyThreadSafetyMode.NONE) { Medialibrary.getInstance() }
-    val player by lazy(LazyThreadSafetyMode.NONE) { PlayerController(service.applicationContext) }
+    val player by lazy(LazyThreadSafetyMode.NONE) {
+        PlayerController(service.applicationContext).also { it.onSeek = { savePosition() } }
+    }
     private val settings by lazy(LazyThreadSafetyMode.NONE) { Settings.getInstance(service) }
     private val positionSaveThrottle = PositionSaveThrottle { SystemClock.elapsedRealtime() }
     private val ctx by lazy(LazyThreadSafetyMode.NONE) { service.applicationContext }
@@ -1045,7 +1047,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     private fun savePosition(reset: Boolean = false, video: Boolean = false, periodic: Boolean = false) {
         if (settings.getBoolean(KEY_INCOGNITO, false)) return
         if (!hasMedia()) return
-        if (periodic && !positionSaveThrottle.shouldSavePeriodic()) return
+        if (!shouldSavePositionNow(periodic, positionSaveThrottle)) return
         settings.edit {
             val audio = !video && isAudioList()
             putBoolean(if (audio) AUDIO_SHUFFLING else MEDIA_SHUFFLING, shuffling)
@@ -1362,7 +1364,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
 
 /**
  * Periodic playback-position saves, at most once per [intervalMs] of monotonic time.
- * Immediate saves (pause, stop, load, new media) call [markSaved] and start a new window.
+ * Immediate saves (pause, stop, load, new media, user seek) call [markSaved] and start a new window.
  */
 internal class PositionSaveThrottle(
         private val intervalMs: Long = 10_000L,
@@ -1376,6 +1378,10 @@ internal class PositionSaveThrottle(
         nextPeriodicSaveAtMs = nowMs + intervalMs
     }
 }
+
+/** A user seek ([periodic] false) always saves. A progress tick saves only when the throttle allows it. */
+internal fun shouldSavePositionNow(periodic: Boolean, throttle: PositionSaveThrottle): Boolean =
+        !periodic || throttle.shouldSavePeriodic()
 
 /** True for a stop, end, or media change while the audio player is not showing. */
 internal fun shouldRefreshBrowserOnMetaSave(audioPlayerShown: Boolean, fromPeriodicUpdate: Boolean): Boolean =
