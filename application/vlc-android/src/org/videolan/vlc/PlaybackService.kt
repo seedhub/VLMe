@@ -232,6 +232,15 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     private val subtitleMessage = ArrayDeque<Pair<String,Long>>(1)
     private lateinit var cbActor: SendChannel<CbAction>
     /**
+     * Session artwork is a copy of the cache bitmap. Pause, resume, and the
+     * delayed subtitle publish reuse that copy. A new media or a new source
+     * bitmap (remote art arriving) copies again. Never recycle it: the session
+     * can still hold the previous metadata.
+     */
+    private val sessionArtwork = SessionArtworkCopy<Bitmap> { source ->
+        source.copy(source.config!!, false)
+    }
+    /**
      * Remote cover loads stay off [cbActor]. State is published with cached or
      * placeholder art; a single later update fills the art if this media is still playing.
      */
@@ -942,6 +951,7 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
         if (this::mediaSession.isInitialized) mediaSession.release()
         //Call it once mediaSession is null, to not publish playback state
         stop(systemExit = true)
+        sessionArtwork.drop()
 
         unregisterReceiver(receiver)
         playlistManager.onServiceDestroyed()
@@ -1188,9 +1198,13 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     private suspend fun updateMetadataInternal() {
         val media = playlistManager.getCurrentMedia() ?: run {
             artworkUpdater.cancel()
+            sessionArtwork.drop()
             return
         }
-        val mediaKey = currentPlaybackKey() ?: return
+        val mediaKey = currentPlaybackKey() ?: run {
+            sessionArtwork.drop()
+            return
+        }
         if (!this::mediaSession.isInitialized) initMediaSession()
         val ctx = this@PlaybackService
         val length = length
@@ -1280,13 +1294,21 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
                         if (decodedArt != null) AudioUtil.readCoverBitmap(decodedArt, 512) else null
                     }
                     val config = cover?.config
-                    if (config != null)
+                    if (cover != null && config != null)
                     //In case of format not supported
-                        bob.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, cover.copy(config, false))
-                    else
+                        bob.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, sessionArtwork.publishedArt(mediaKey, cover))
+                    else {
+                        sessionArtwork.drop()
                         bob.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, ctx.getBitmapFromDrawable(R.drawable.ic_no_media, 512, 512))
-                } else artworkUpdater.cancel()
-            } else artworkUpdater.cancel()
+                    }
+                } else {
+                    artworkUpdater.cancel()
+                    sessionArtwork.drop()
+                }
+            } else {
+                artworkUpdater.cancel()
+                sessionArtwork.drop()
+            }
             return@withContext bob.build()
         }
         if (this@PlaybackService::mediaSession.isInitialized) mediaSession.setMetadata(bob)
