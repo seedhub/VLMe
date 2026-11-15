@@ -1,6 +1,7 @@
 package org.videolan.vlc.media
 
 import android.content.Intent
+import android.os.SystemClock
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.widget.Toast
@@ -130,6 +131,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     private val medialibrary by lazy(LazyThreadSafetyMode.NONE) { Medialibrary.getInstance() }
     val player by lazy(LazyThreadSafetyMode.NONE) { PlayerController(service.applicationContext) }
     private val settings by lazy(LazyThreadSafetyMode.NONE) { Settings.getInstance(service) }
+    private val positionSaveThrottle = PositionSaveThrottle { SystemClock.elapsedRealtime() }
     private val ctx by lazy(LazyThreadSafetyMode.NONE) { service.applicationContext }
     var currentIndex = -1
         set(value) {
@@ -1035,9 +1037,10 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     }
 
     @Synchronized
-    private fun savePosition(reset: Boolean = false, video: Boolean = false) {
+    private fun savePosition(reset: Boolean = false, video: Boolean = false, periodic: Boolean = false) {
         if (settings.getBoolean(KEY_INCOGNITO, false)) return
         if (!hasMedia()) return
+        if (periodic && !positionSaveThrottle.shouldSavePeriodic()) return
         settings.edit {
             val audio = !video && isAudioList()
             putBoolean(if (audio) AUDIO_SHUFFLING else MEDIA_SHUFFLING, shuffling)
@@ -1052,6 +1055,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                 if(audio && settings.getBoolean(AUDIO_RESUME_PLAYBACK, true)) putString(KEY_CURRENT_AUDIO, media.location)
             }
         }
+        positionSaveThrottle.markSaved()
     }
 
     /**
@@ -1276,7 +1280,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                             || (!fastSeek && player.getCurrentTime() < it.start))
                             service.setTime(it.start, false)
                     }
-                    if (player.getCurrentTime() % 10 == 0L) savePosition()
+                    savePosition(periodic = true)
                     val now = System.currentTimeMillis()
                     if (now - lastTimeMetaSaved > 5000L){
                         lastTimeMetaSaved = now
@@ -1349,6 +1353,23 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     }
 
     internal fun isAudioList() = !player.isVideoPlaying() && mediaList.isAudioList
+}
+
+/**
+ * Periodic playback-position saves, at most once per [intervalMs] of monotonic time.
+ * Immediate saves (pause, stop, load, new media) call [markSaved] and start a new window.
+ */
+internal class PositionSaveThrottle(
+        private val intervalMs: Long = 10_000L,
+        private val elapsedRealtimeMs: () -> Long,
+) {
+    private var nextPeriodicSaveAtMs = elapsedRealtimeMs() + intervalMs
+
+    fun shouldSavePeriodic(nowMs: Long = elapsedRealtimeMs()): Boolean = nowMs >= nextPeriodicSaveAtMs
+
+    fun markSaved(nowMs: Long = elapsedRealtimeMs()) {
+        nextPeriodicSaveAtMs = nowMs + intervalMs
+    }
 }
 
 class ABRepeat(var start: Long = -1L, var stop: Long = -1L)
