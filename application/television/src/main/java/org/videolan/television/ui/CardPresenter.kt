@@ -24,6 +24,7 @@ import android.annotation.TargetApi
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.content.res.Resources
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -56,6 +57,7 @@ import org.videolan.resources.UPDATE_DESCRIPTION
 import org.videolan.resources.UPDATE_SEEN
 import org.videolan.resources.UPDATE_THUMB
 import org.videolan.resources.UPDATE_TIME
+import org.videolan.tools.HttpImageLoader
 import org.videolan.tools.KEY_MEDIA_SEEN
 import org.videolan.tools.Settings
 import org.videolan.tools.dp
@@ -67,6 +69,7 @@ import org.videolan.vlc.gui.helpers.getBitmapFromDrawable
 import org.videolan.vlc.gui.helpers.getTvIconRes
 import org.videolan.vlc.gui.helpers.loadImage
 import org.videolan.vlc.gui.helpers.loadPlaylistImageWithWidth
+import org.videolan.vlc.util.isSchemeHttpOrHttps
 
 
 public const val FAVORITE_FLAG = 1000
@@ -136,6 +139,12 @@ class CardPresenter(private val context: FragmentActivity, private val isPoster:
             }
         }
 
+        private fun gridArtEdge(artworkMrl: String?, res: Resources): Int {
+            val decoded = artworkMrl?.let { Uri.decode(it) }
+            return if (isSchemeHttpOrHttps(decoded)) HttpImageLoader.listDecodeEdgePx()
+            else res.getDimensionPixelSize(R.dimen.tv_grid_card_thumb_width)
+        }
+
         private fun getDefaultImage(mediaLibraryItem: MediaLibraryItem): Bitmap? {
             var picture: Bitmap?
             val res = cardView.resources
@@ -145,7 +154,7 @@ class CardPresenter(private val context: FragmentActivity, private val isPoster:
                 else
                     context.getBitmapFromDrawable(R.drawable.ic_network_big)
             } else
-                AudioUtil.readCoverBitmapBlocking(Uri.decode(mediaLibraryItem.artworkMrl), res.getDimensionPixelSize(R.dimen.tv_grid_card_thumb_width))
+                AudioUtil.readCoverBitmapBlocking(Uri.decode(mediaLibraryItem.artworkMrl), gridArtEdge(mediaLibraryItem.artworkMrl, res))
             if (picture == null) picture = getBitmapFromDrawable(context, getTvIconRes(mediaLibraryItem))
             return picture
         }

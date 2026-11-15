@@ -62,7 +62,7 @@ import kotlin.math.max
 /**
  * Remote artwork loader.
  *
- * Callers only wait. One shared flight per URL runs on [flightScope] and takes
+ * Callers only wait. One shared flight per URL and decode size runs on [flightScope] and takes
  * a permit from a fair FIFO semaphore before it touches the network, so at most
  * [MAX_CONCURRENT_DOWNLOADS] downloads allocate buffers or sockets. Cancelling
  * a caller drops only that caller's interest. The flight is disconnected and
@@ -76,14 +76,21 @@ import kotlin.math.max
  * Content-Length is allocated exactly once and decoded in place. There is no
  * second copy via [java.io.ByteArrayOutputStream.toByteArray]. Four workers
  * therefore peak at about 8MB of compressed bytes, not two copies of a larger cap.
- * 2MB is enough for poster and cover art that this loader samples down to 150dp.
+ * 2MB is enough for poster and cover art. Callers choose the decode edge.
+ * Lists use 150dp. Playback asks for a larger edge. The body cap does not change.
  */
 object HttpImageLoader {
 
     private const val TAG = "HttpImageLoader"
 
-    /** Longest decoded edge, in dp. Callers reuse this bitmap at several sizes. */
+    /** Longest decoded edge for lists and grids, in dp. Playback asks for pixels instead. */
     internal const val MAX_DECODE_EDGE_DP = 150
+
+    /** Memory-cache and in-flight key. A 150dp entry is not a 512px entry. */
+    fun cacheKey(imageUrl: String, maxEdgePx: Int) = "edge:$maxEdgePx|$imageUrl"
+
+    /** Pixel edge used when a caller does not ask for one. */
+    fun listDecodeEdgePx(): Int = MAX_DECODE_EDGE_DP.dp
 
     /** Reject decoded bitmaps larger than this so a crafted image cannot expand without bound. */
     internal const val MAX_DECODED_PIXELS = 8 * 1024 * 1024
@@ -96,9 +103,9 @@ object HttpImageLoader {
     internal const val DEFAULT_CALL_TIMEOUT_MS = 20_000
 
     /**
-     * Compressed-body cap. Artwork is sampled to 150dp, so a multi-megabyte
-     * original is not useful here. 2MB times [MAX_CONCURRENT_DOWNLOADS] is the
-     * peak of the single in-place buffers.
+     * Compressed-body cap. The original is sampled to the caller's edge, so a
+     * multi-megabyte file is not useful here. 2MB times [MAX_CONCURRENT_DOWNLOADS]
+     * is the peak of the single in-place buffers.
      */
     internal const val DEFAULT_MAX_BODY_BYTES = 2 * 1024 * 1024
 
@@ -156,14 +163,16 @@ object HttpImageLoader {
     /** Bytes actually occupied by the image. [bytes] may be larger only when the length was unknown. */
     internal class ImageBytes(val bytes: ByteArray, val length: Int)
 
-    suspend fun downloadBitmap(imageUrl: String): Bitmap? {
-        BitmapCache.getBitmapFromMemCache(imageUrl)?.let { return it }
+    suspend fun downloadBitmap(imageUrl: String, maxEdgePx: Int = listDecodeEdgePx()): Bitmap? {
+        val edge = if (maxEdgePx > 0) maxEdgePx else listDecodeEdgePx()
+        val key = cacheKey(imageUrl, edge)
+        BitmapCache.getBitmapFromMemCache(key)?.let { return it }
         val callerTimeoutMs = callTimeoutMs.coerceAtLeast(1)
         val flight: Flight
         val started: Job?
         synchronized(inFlight) {
-            BitmapCache.getBitmapFromMemCache(imageUrl)?.let { return it }
-            val existing = inFlight[imageUrl]
+            BitmapCache.getBitmapFromMemCache(key)?.let { return it }
+            val existing = inFlight[key]
             if (existing != null && existing.acceptsWaiters) {
                 existing.waiters++
                 flight = existing
@@ -178,9 +187,9 @@ object HttpImageLoader {
                 created.waiters = 1
                 // Lazy so the body cannot run on this thread while the map lock is held.
                 created.job = flightScope.launch(start = CoroutineStart.LAZY) {
-                    runFlight(imageUrl, created)
+                    runFlight(key, imageUrl, edge, created)
                 }
-                inFlight[imageUrl] = created
+                inFlight[key] = created
                 flight = created
                 started = created.job
             }
@@ -193,11 +202,11 @@ object HttpImageLoader {
                 return null
             }
         } finally {
-            dropWaiter(imageUrl, flight)
+            dropWaiter(key, flight)
         }
     }
 
-    private suspend fun runFlight(imageUrl: String, flight: Flight) {
+    private suspend fun runFlight(key: String, imageUrl: String, maxEdgePx: Int, flight: Flight) {
         val permits = slots
         var acquired = false
         try {
@@ -207,7 +216,7 @@ object HttpImageLoader {
                 flight.result.complete(null)
                 return
             }
-            val bitmap = withContext(loaderDispatcher) { fetch(imageUrl, flight) }
+            val bitmap = withContext(loaderDispatcher) { fetch(imageUrl, maxEdgePx, flight) }
             flight.result.complete(bitmap)
         } catch (cancelled: CancellationException) {
             flight.connection?.disconnect()
@@ -216,7 +225,7 @@ object HttpImageLoader {
         } finally {
             if (acquired) permits.release()
             synchronized(inFlight) {
-                if (inFlight[imageUrl] === flight) inFlight.remove(imageUrl)
+                if (inFlight[key] === flight) inFlight.remove(key)
             }
             flight.connection?.disconnect()
         }
@@ -226,13 +235,13 @@ object HttpImageLoader {
      * Last caller left. The flight is taken out of the map before it is
      * cancelled so a retry starts a new one instead of joining a dead result.
      */
-    private fun dropWaiter(imageUrl: String, flight: Flight) {
+    private fun dropWaiter(key: String, flight: Flight) {
         val job: Job?
         synchronized(inFlight) {
             flight.waiters--
             if (flight.waiters > 0 || flight.result.isCompleted) return
             flight.abandoned = true
-            if (inFlight[imageUrl] === flight) inFlight.remove(imageUrl)
+            if (inFlight[key] === flight) inFlight.remove(key)
             job = flight.job
         }
         flight.connection?.disconnect()
@@ -240,9 +249,9 @@ object HttpImageLoader {
         job?.cancel()
     }
 
-    private fun fetch(imageUrl: String, flight: Flight): Bitmap? {
+    private fun fetch(imageUrl: String, maxEdgePx: Int, flight: Flight): Bitmap? {
         return try {
-            downloadAndDecode(imageUrl, flight)
+            downloadAndDecode(imageUrl, maxEdgePx, flight)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (e: SocketTimeoutException) {
@@ -257,7 +266,7 @@ object HttpImageLoader {
         }
     }
 
-    private fun downloadAndDecode(imageUrl: String, flight: Flight): Bitmap? {
+    private fun downloadAndDecode(imageUrl: String, maxEdgePx: Int, flight: Flight): Bitmap? {
         var stream: InputStream? = null
         var errorStream: InputStream? = null
         var abort: ScheduledFuture<*>? = null
@@ -294,8 +303,8 @@ object HttpImageLoader {
             stream = connection.inputStream
             val body = readImageBytes(stream, declaredLength, flight.maxBytes, deadline) ?: return null
             if (flight.abandoned) return null
-            val bitmap = decodeSampled(body.bytes, MAX_DECODE_EDGE_DP.dp, body.length)
-            if (bitmap != null && !flight.abandoned) BitmapCache.addBitmapToMemCache(imageUrl, bitmap)
+            val bitmap = decodeSampled(body.bytes, maxEdgePx, body.length)
+            if (bitmap != null && !flight.abandoned) BitmapCache.addBitmapToMemCache(cacheKey(imageUrl, maxEdgePx), bitmap)
             return if (flight.abandoned) null else bitmap
         } finally {
             abort?.cancel(false)
@@ -387,7 +396,7 @@ object HttpImageLoader {
 
     @VisibleForTesting
     internal fun waiterCount(imageUrl: String): Int = synchronized(inFlight) {
-        inFlight[imageUrl]?.waiters ?: 0
+        inFlight[cacheKey(imageUrl, listDecodeEdgePx())]?.waiters ?: 0
     }
 
     @VisibleForTesting

@@ -143,7 +143,7 @@ object AudioUtil {
      */
     suspend fun readCoverBitmap(requestedPath: String?, width: Int): Bitmap? {
         val path = requestedPath ?: return null
-        if (isSchemeHttpOrHttps(path)) return HttpImageLoader.downloadBitmap(path)
+        if (isSchemeHttpOrHttps(path)) return HttpImageLoader.downloadBitmap(path, remoteEdge(width))
         return BitmapCache.getBitmapFromMemCache(path.removeFileScheme() + "_$width") ?: fetchCoverBitmap(path, width)
     }
 
@@ -160,15 +160,19 @@ object AudioUtil {
         if (!isSchemeHttpOrHttps(path)) {
             return BitmapCache.getBitmapFromMemCache(path.removeFileScheme() + "_$width") ?: fetchCoverBitmap(path, width)
         }
-        BitmapCache.getBitmapFromMemCache(path)?.let { return it }
+        val edge = remoteEdge(width)
+        BitmapCache.getBitmapFromMemCache(HttpImageLoader.cacheKey(path, edge))?.let { return it }
         return try {
             runBlocking {
-                withTimeout(timeoutMs) { HttpImageLoader.downloadBitmap(path) }
+                withTimeout(timeoutMs) { HttpImageLoader.downloadBitmap(path, edge) }
             }
         } catch (timeout: TimeoutCancellationException) {
             null
         }
     }
+
+    /** Remote playback passes 512 or the view size. A non-positive width stays at the list edge. */
+    private fun remoteEdge(width: Int) = if (width > 0) width else HttpImageLoader.listDecodeEdgePx()
 
     @WorkerThread
     fun fetchCoverBitmap(requestedPath: String, width: Int): Bitmap? {
