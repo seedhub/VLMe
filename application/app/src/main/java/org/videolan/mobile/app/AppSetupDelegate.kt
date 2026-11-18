@@ -50,7 +50,6 @@ import org.videolan.tools.KEY_PERSISTENT_INCOGNITO
 import org.videolan.tools.KEY_SET_LOCALE
 import org.videolan.tools.Settings
 import org.videolan.tools.putSingle
-import org.videolan.vlc.BuildConfig as VlcBuildConfig
 import org.videolan.vlc.gui.helpers.NotificationHelper
 import org.videolan.vlc.util.DialogDelegate
 import org.videolan.vlc.util.FontCache
@@ -84,7 +83,7 @@ class AppSetupDelegate : AppDelegate,
         applyCoroutineDebugProperty(org.videolan.mobile.app.BuildConfig.DEBUG)
 
         val settings = Settings.getInstance(this)
-        if (VlcBuildConfig.DEBUG) {
+        if (BuildConfig.DEBUG) {
             if (Settings.showTvUi) {
                 // Register movipedia to resume tv shows/movies
                 setupContentResolvers()
