@@ -64,6 +64,8 @@ class HttpImageLoaderTest {
         val caller = CoroutineScope(Job())
         val first = caller.async { HttpImageLoader.downloadBitmap(url) }
         assertTrue("download never reached the server", started.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        val flightJob = HttpImageLoader.inFlightJob(url)
+        assertNotNull(flightJob)
         caller.cancel()
         try {
             first.await()
@@ -73,7 +75,7 @@ class HttpImageLoaderTest {
         }
 
         release.countDown()
-        awaitIdle()
+        flightJob!!.join()
         assertEquals(0, HttpImageLoader.inFlightCount())
         assertEquals(0, HttpImageLoader.retainedCompletedBitmapCount())
         assertEquals(0, HttpImageLoader.openConnectionCount())
