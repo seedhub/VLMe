@@ -359,13 +359,23 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     private var screenOnDiag: String? = null
     private val screenOnReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            // VLMe: screen off in pop-up — keep the playback notification posted
+            // so the service stays in the foreground (see PlaybackService).
+            if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                val svc = PlaybackService.instance ?: service ?: return
+                svc.vlmeOnScreenOffPopup()
+                return
+            }
             if (intent.action != Intent.ACTION_SCREEN_ON) return
             val svc = PlaybackService.instance ?: service ?: return
+            // VLMe: screen back on — drop the screen-off foreground hold so the
+            // notification is hidden again in PiP.
+            svc.vlmeOnScreenOnPopup()
             // VLMe dbg: report the pause diagnosis even when paused — the
             // re-attach below only runs while playing, so without this the
             // pause reason would never be seen.
             val notes = VlmeDbg.read(applicationContext)
-            screenOnDiag = "VLMe dbg: playing=${svc.isPlaying}\n$notes"
+            screenOnDiag = "VLMe dbg: playing=${svc.isPlaying} fg=${svc.vlmeIsForeground()}\n$notes"
             Toast.makeText(applicationContext, screenOnDiag, Toast.LENGTH_LONG).show()
             if (!svc.isPlaying || displayManager.isOnRenderer) return
             svc.mediaplayer.detachViews()
@@ -587,10 +597,14 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         displayManager = DisplayManager(this, PlaybackService.renderer, false, enableCloneMode, isBenchmark)
         setContentView(if (displayManager.isPrimary) R.layout.player else R.layout.player_remote_control)
 
-        // VLMe: screen-on receiver for the PiP video resume (see
-        // screenOnReceiver). Registered early so it is active for the
-        // activity's whole lifetime, including while stopped in PiP.
-        registerReceiverCompat(screenOnReceiver, IntentFilter(Intent.ACTION_SCREEN_ON), false)
+        // VLMe: screen-on receiver for the PiP video resume, plus screen-off
+        // for the foreground hold (see screenOnReceiver). Registered early so
+        // it is active for the activity's whole lifetime, including while
+        // stopped in PiP.
+        registerReceiverCompat(screenOnReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }, false)
 
 
         rootView = findViewById(R.id.player_root)

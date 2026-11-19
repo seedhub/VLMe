@@ -440,6 +440,9 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
 
     @Volatile
     private var isForeground = false
+    // VLMe: set while the screen is off in pop-up mode — keeps the playback
+    // notification posted so the system keeps this service in the foreground.
+    private var vlmeScreenOffPopup = false
 
     private var currentWidgetCover: String? = null
 
@@ -1065,6 +1068,31 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
             publishState()
     }
 
+    /**
+     * VLMe: screen turned off while playing in the pop-up. In PiP the playback
+     * notification is normally cancelled (the PiP window is the UI), but a
+     * foreground service with no notification can lose its foreground
+     * exemption, letting Doze freeze playback a few minutes after screen-off
+     * — with no pause event and isPlaying still true. Keep the notification
+     * posted (invisible: the screen is off) until the screen comes back on.
+     */
+    fun vlmeOnScreenOffPopup() {
+        if (!isPlayingPopup || vlmeScreenOffPopup) return
+        vlmeScreenOffPopup = true
+        VlmeDbg.note(this, "FG_KEEP_ON")
+        showNotification()
+    }
+
+    fun vlmeOnScreenOnPopup() {
+        if (!vlmeScreenOffPopup) return
+        vlmeScreenOffPopup = false
+        VlmeDbg.note(this, "FG_KEEP_OFF")
+        showNotification() // re-hides the notification in PiP
+    }
+
+    /** VLMe dbg: current foreground-service flag, for the screen-on Toast. */
+    fun vlmeIsForeground() = isForeground
+
     fun showNotification(): Boolean {
         notificationShowing = true
         return cbActor.trySend(ShowNotification).isSuccess
@@ -1073,7 +1101,7 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private fun showNotificationInternal() {
         if (!AndroidDevices.isAndroidTv && Settings.showTvUi) return
-        if (isPlayingPopup || !hasRenderer() && isVideoPlaying) {
+        if ((isPlayingPopup && !vlmeScreenOffPopup) || !hasRenderer() && isVideoPlaying) {
             hideNotificationInternal(true)
             return
         }
@@ -1087,7 +1115,7 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
             val metaData = mediaSession.controller.metadata
             lifecycleScope.launch(Dispatchers.Default) {
                 delay(100)
-                if (isPlayingPopup || !notificationShowing) return@launch
+                if ((isPlayingPopup && !vlmeScreenOffPopup) || !notificationShowing) return@launch
                 try {
                     val title = if (metaData == null) mw.title else metaData.getString(MediaMetadataCompat.METADATA_KEY_TITLE)
                     val artist = if (metaData == null) mw.artistName else metaData.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST)
@@ -1101,7 +1129,7 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
                             canSwitchToVideo(), title, artist, album, cover, playing, isPausable,
                             isSeekable, speed, isPodcastMode, seekInCompactView, enabledActions,
                             sessionToken, sessionPendingIntent)
-                    if (isPlayingPopup) return@launch
+                    if (isPlayingPopup && !vlmeScreenOffPopup) return@launch
                     if (!VlcMigrationHelper.isLolliPopOrLater || playing || audioFocusHelper.lossTransient) {
                         if (!isForeground) {
                             ctx.launchForeground(Intent(ctx, PlaybackService::class.java)) {
