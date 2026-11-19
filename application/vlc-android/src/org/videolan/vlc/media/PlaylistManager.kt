@@ -87,6 +87,7 @@ import org.videolan.tools.putSingle
 import org.videolan.vlc.BuildConfig
 import org.videolan.vlc.PlaybackService
 import org.videolan.vlc.R
+import org.videolan.vlc.VlmeDbg
 import org.videolan.vlc.gui.browser.BaseBrowserFragment
 import org.videolan.vlc.gui.video.VideoPlayerActivity
 import org.videolan.vlc.util.FileUtils
@@ -357,6 +358,9 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     }
 
     fun pause() {
+        // VLMe dbg: record who asked for the pause (focus loss, headset,
+        // notification/media-session, activity, user).
+        VlmeDbg.note(ctx, "PAUSE from=" + VlmeDbg.callerTag("PlaylistManager", "PlaybackService"))
         if (player.pause()) {
             savePosition()
             launch {
@@ -394,6 +398,8 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
     }
 
     fun stop(systemExit: Boolean = false, video: Boolean = false) {
+        // VLMe dbg: record an explicit stop (incl. service destroy path).
+        VlmeDbg.note(ctx, "PM_STOP sysExit=$systemExit")
         clearABRepeat()
         if (stopAfter != -1) Settings.getInstance(AppContextProvider.appContext).putSingle(AUDIO_STOP_AFTER, stopAfter)
         stopAfter = -1

@@ -375,11 +375,16 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
             }
             MediaPlayer.Event.Paused -> {
                 if (BuildConfig.DEBUG) Log.i(TAG, "MediaPlayer.Event.Paused")
+                // VLMe dbg: record a libvlc-side pause (no pause() call needed).
+                VlmeDbg.note(this@PlaybackService, "LIBVLC_PAUSED wakeHeld=${wakeLock.isHeld} fg=$isForeground")
                 executeUpdate(true)
                 showNotification()
                 if (wakeLock.isHeld) wakeLock.release()
             }
-            MediaPlayer.Event.EncounteredError -> executeUpdate()
+            MediaPlayer.Event.EncounteredError -> {
+                VlmeDbg.note(this@PlaybackService, "LIBVLC_ERROR")
+                executeUpdate()
+            }
             MediaPlayer.Event.LengthChanged -> {
                 lastChaptersCount = getChapters(-1)?.size ?: 0
                 if (lastLength == 0L) {
@@ -404,6 +409,9 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
             }
             MediaPlayer.Event.MediaChanged -> if (BuildConfig.DEBUG) Log.d(TAG, "onEvent: MediaChanged")
             MediaPlayer.Event.EndReached -> {
+                // VLMe dbg: end of media is a normal stop, record it so it is
+                // not mistaken for the screen-off pause.
+                VlmeDbg.note(this@PlaybackService, "LIBVLC_ENDREACHED")
                 mediaEndReached = true
                 playQueueFinished = !playlistManager.hasNext() || playlistManager.stopAfter == currentMediaPosition
             }
@@ -945,6 +953,8 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     }
 
     override fun onDestroy() {
+        // VLMe dbg: service destroyed (process death vs explicit stop).
+        VlmeDbg.note(this, "SERVICE_DESTROY")
         serviceFlow.value = null
         dispatcher.onServicePreSuperOnDestroy()
         PlaylistManager.playingState.value = false

@@ -182,6 +182,7 @@ import org.videolan.vlc.BuildConfig
 import org.videolan.vlc.PlaybackService
 import org.videolan.vlc.R
 import org.videolan.vlc.VlcMigrationHelper
+import org.videolan.vlc.VlmeDbg
 import org.videolan.vlc.getAllTracks
 import org.videolan.vlc.getSelectedVideoTrack
 import org.videolan.vlc.gui.DialogActivity
@@ -354,10 +355,18 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     // already scopes this to the PiP case, since in the full player
     // the screen turning off stops playback, so isPlaying is false on
     // screen-on there.
+    // VLMe dbg: last screen-on diagnosis, re-shown in onResume (run #45 pattern).
+    private var screenOnDiag: String? = null
     private val screenOnReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != Intent.ACTION_SCREEN_ON) return
             val svc = PlaybackService.instance ?: service ?: return
+            // VLMe dbg: report the pause diagnosis even when paused — the
+            // re-attach below only runs while playing, so without this the
+            // pause reason would never be seen.
+            val notes = VlmeDbg.read(applicationContext)
+            screenOnDiag = "VLMe dbg: playing=${svc.isPlaying}\n$notes"
+            Toast.makeText(applicationContext, screenOnDiag, Toast.LENGTH_LONG).show()
             if (!svc.isPlaying || displayManager.isOnRenderer) return
             svc.mediaplayer.detachViews()
             videoLayout?.let {
@@ -802,6 +811,8 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         // VLMe: re-attach the video views if onStop() detached them (see
         // reattachVideoViewsIfNeeded). Called from onResume as a safety net.
         reattachVideoViewsIfNeeded()
+        // VLMe dbg: re-show the screen-on diagnosis (e.g. after expanding).
+        screenOnDiag?.let { Toast.makeText(applicationContext, it, Toast.LENGTH_LONG).show() }
     }
 
     // VLMe: onStop() detaches the video views (cleanUI) — e.g. when the
@@ -1087,6 +1098,8 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         alertDialog?.dismiss()
         val isPlayingPopup = service?.isPlayingPopup == true
         val isSystemPip = (service?.isInPiPMode?.value == true) && !isPlayingPopup
+        // VLMe dbg: timestamp the screen-off so the pause gap is measurable.
+        VlmeDbg.note(applicationContext, "ACT_ONSTOP pip=$isSystemPip finishing=$isFinishing")
         // VLMe: in system PiP mode the activity is stopped when the screen
         // turns off — switching to audio mode here would finish the activity
         // (exitOK) and destroy the PiP window, so skip it in PiP.
@@ -1204,6 +1217,8 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
 
     private fun stopPlayback() {
         if (!playbackStarted) return
+        // VLMe dbg: the activity asked for a stop (should be skipped in PiP).
+        VlmeDbg.note(applicationContext, "ACT_STOPPLAYBACK")
 
         if (!displayManager.isPrimary && !isFinishing || service == null) {
             playbackStarted = false
