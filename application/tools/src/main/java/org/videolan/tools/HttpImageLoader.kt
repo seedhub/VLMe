@@ -213,22 +213,28 @@ object HttpImageLoader {
             permits.acquire()
             acquired = true
             if (!coroutineContext.isActive || flight.abandoned) {
-                flight.result.complete(null)
+                publishResult(key, flight, null)
                 return
             }
             val bitmap = withContext(loaderDispatcher) { fetch(imageUrl, maxEdgePx, flight) }
-            flight.result.complete(bitmap)
+            // Drop the map entry before waking waiters. complete() can resume a
+            // caller inline, and that caller must not still observe this flight.
+            publishResult(key, flight, if (flight.abandoned) null else bitmap)
         } catch (cancelled: CancellationException) {
             flight.connection?.disconnect()
-            flight.result.complete(null)
+            publishResult(key, flight, null)
             throw cancelled
         } finally {
             if (acquired) permits.release()
-            synchronized(inFlight) {
-                if (inFlight[key] === flight) inFlight.remove(key)
-            }
             flight.connection?.disconnect()
         }
+    }
+
+    private fun publishResult(key: String, flight: Flight, bitmap: Bitmap?) {
+        synchronized(inFlight) {
+            if (inFlight[key] === flight) inFlight.remove(key)
+        }
+        flight.result.complete(bitmap)
     }
 
     /**
@@ -236,13 +242,13 @@ object HttpImageLoader {
      * cancelled so a retry starts a new one instead of joining a dead result.
      */
     private fun dropWaiter(key: String, flight: Flight) {
-        val job: Job?
-        synchronized(inFlight) {
+        val job: Job? = synchronized(inFlight) {
             flight.waiters--
-            if (flight.waiters > 0 || flight.result.isCompleted) return
+            val last = flight.waiters <= 0
+            if (last && inFlight[key] === flight) inFlight.remove(key)
+            if (!last || flight.result.isCompleted) return
             flight.abandoned = true
-            if (inFlight[key] === flight) inFlight.remove(key)
-            job = flight.job
+            flight.job
         }
         flight.connection?.disconnect()
         flight.result.complete(null)
@@ -397,6 +403,11 @@ object HttpImageLoader {
     @VisibleForTesting
     internal fun waiterCount(imageUrl: String): Int = synchronized(inFlight) {
         inFlight[cacheKey(imageUrl, listDecodeEdgePx())]?.waiters ?: 0
+    }
+
+    /** Job for the list-size flight, if one is still published. Tests join this instead of polling. */
+    internal fun inFlightJob(imageUrl: String): Job? = synchronized(inFlight) {
+        inFlight[cacheKey(imageUrl, listDecodeEdgePx())]?.job
     }
 
     @VisibleForTesting
