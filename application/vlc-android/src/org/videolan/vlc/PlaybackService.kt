@@ -1077,7 +1077,10 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
      * posted (invisible: the screen is off) until the screen comes back on.
      */
     fun vlmeOnScreenOffPopup() {
-        if (!isPlayingPopup || vlmeScreenOffPopup) return
+        // VLMe: Android system PiP is isInPiPMode — isPlayingPopup is VLC's
+        // legacy floating player (popupManager != null) and is false in PiP,
+        // which is why run #65's hold never engaged (no FG_KEEP_ON note).
+        if (isInPiPMode.value != true || vlmeScreenOffPopup) return
         vlmeScreenOffPopup = true
         VlmeDbg.note(this, "FG_KEEP_ON")
         showNotification()
@@ -1174,7 +1177,11 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     }
 
     private fun hideNotificationInternal(remove: Boolean) {
-        if (!isPlayingPopup && isForeground) {
+        // VLMe: while playing in Android PiP, do NOT take the service out of
+        // the foreground. The notification is hidden in PiP by design, but
+        // demoting here lets Doze freeze playback minutes after screen-off
+        // (run #65 proved it: fg=false at unlock, stall at 3:59).
+        if (!isPlayingPopup && !(isInPiPMode.value == true && isPlaying) && isForeground) {
             ServiceCompat.stopForeground(this@PlaybackService, if (remove) ServiceCompat.STOP_FOREGROUND_REMOVE else ServiceCompat.STOP_FOREGROUND_DETACH)
             isForeground = false
         }
