@@ -2002,6 +2002,15 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode)
         service?.isInPiPMode?.value = isInPictureInPictureMode
+        // VLMe: hide the full-player HUD on PiP entry. The overlay is up
+        // when the pop-up button is tapped, and its FADE_OUT is only a
+        // pending handler message — if the screen turns off within the
+        // ~4s HUD delay, onStop()'s removeCallbacksAndMessages(null)
+        // wipes the fade and the HUD stays stuck visible inside the PiP
+        // window (nothing re-hides it: onResume() never fires in PiP).
+        // The showOverlay/showControls PiP guards only block NEW shows,
+        // so hide here, at the choke point for every PiP entry.
+        if (isInPictureInPictureMode) overlayDelegate.hideOverlay(false)
         service?.mediaplayer?.updateVideoSurfaces()
     }
 
