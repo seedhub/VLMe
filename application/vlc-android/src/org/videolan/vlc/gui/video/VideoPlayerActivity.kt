@@ -1003,24 +1003,32 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     @TargetApi(Build.VERSION_CODES.O)
     private fun buildPipActions(): List<RemoteAction> {
         val delay = Settings.videoJumpDelay.toLong()
+        // VLMe: intents MUST be explicit (target PlaybackService). Implicit
+        // intents never resolve: the service declares no intent-filter for
+        // the ACTION_REMOTE_* actions, so tapping a PiP button did nothing.
+        // Same construction the home-screen widget uses.
+        // VLMe: seek icons are PiP-specific vectors with a hardcoded white
+        // fill. The player icons use ?attr/player_icon_color, which SystemUI
+        // cannot resolve when it inflates PiP action icons out of process,
+        // so those actions were dropped entirely.
         val rewind = RemoteAction(
-                Icon.createWithResource(this, R.drawable.ic_player_rewind_10),
+                Icon.createWithResource(this, R.drawable.ic_pip_rewind_10),
                 getString(R.string.playback_rewind),
                 getString(R.string.playback_rewind),
-                getPendingIntent(Intent(ACTION_REMOTE_SEEK_BACKWARD).putExtra(EXTRA_SEEK_DELAY, delay))
+                getPendingIntent(Intent(ACTION_REMOTE_SEEK_BACKWARD, null, this, PlaybackService::class.java).putExtra(EXTRA_SEEK_DELAY, delay))
         )
         val playing = service?.isPlaying == true
         val playPause = RemoteAction(
                 Icon.createWithResource(this, if (playing) R.drawable.ic_popup_pause else R.drawable.ic_popup_play),
                 getString(if (playing) R.string.pause else R.string.play),
                 getString(if (playing) R.string.pause else R.string.play),
-                getPendingIntent(Intent(ACTION_REMOTE_PLAYPAUSE))
+                getPendingIntent(Intent(ACTION_REMOTE_PLAYPAUSE, null, this, PlaybackService::class.java))
         )
         val forward = RemoteAction(
-                Icon.createWithResource(this, R.drawable.ic_player_forward_10),
+                Icon.createWithResource(this, R.drawable.ic_pip_forward_10),
                 getString(R.string.playback_forward),
                 getString(R.string.playback_forward),
-                getPendingIntent(Intent(ACTION_REMOTE_SEEK_FORWARD).putExtra(EXTRA_SEEK_DELAY, delay))
+                getPendingIntent(Intent(ACTION_REMOTE_SEEK_FORWARD, null, this, PlaybackService::class.java).putExtra(EXTRA_SEEK_DELAY, delay))
         )
         return listOf(rewind, playPause, forward)
     }
