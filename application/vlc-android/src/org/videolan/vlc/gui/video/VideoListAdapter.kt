@@ -257,12 +257,12 @@ class VideoListAdapter(private var isSeenMediaMarkerVisible: Boolean, private va
             } //else if (oldItem is FolderImpl && newItem is FolderImpl) return oldItem === newItem || (oldItem.title == newItem.title && oldItem.artworkMrl == newItem.artworkMrl)
             else if (oldItem is VideoGroup && newItem is VideoGroup) {
                 oldItem === newItem || (oldItem.title == newItem.title
-                        && oldItem.tracksCount == newItem.tracksCount && oldItem.presentCount != newItem.presentCount
+                        && oldItem.tracksCount == newItem.tracksCount && oldItem.presentCount == newItem.presentCount
                         && oldItem.isFavorite == newItem.isFavorite)
             }
             else if (oldItem is Folder && newItem is Folder) {
                 oldItem === newItem || (oldItem.title == newItem.title
-                        && oldItem.tracksCount == newItem.tracksCount
+                        && oldItem.mediaCount(Folder.TYPE_FOLDER_VIDEO) == newItem.mediaCount(Folder.TYPE_FOLDER_VIDEO)
                         && oldItem.mMrl == newItem.mMrl
                         && oldItem.isFavorite == newItem.isFavorite)
             }
