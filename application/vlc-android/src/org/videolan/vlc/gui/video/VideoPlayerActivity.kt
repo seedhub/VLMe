@@ -25,6 +25,7 @@ import android.annotation.TargetApi
 import android.app.Activity
 import android.app.KeyguardManager
 import android.app.PictureInPictureParams
+import android.app.RemoteAction
 import android.bluetooth.BluetoothA2dp
 import android.bluetooth.BluetoothHeadset
 import android.content.BroadcastReceiver
@@ -36,6 +37,7 @@ import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.drawable.Icon
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
@@ -121,9 +123,13 @@ import org.videolan.medialibrary.interfaces.Medialibrary
 import org.videolan.medialibrary.interfaces.media.Bookmark
 import org.videolan.medialibrary.interfaces.media.MediaWrapper
 import org.videolan.medialibrary.media.MediaLibraryItem
+import org.videolan.resources.ACTION_REMOTE_PLAYPAUSE
+import org.videolan.resources.ACTION_REMOTE_SEEK_BACKWARD
+import org.videolan.resources.ACTION_REMOTE_SEEK_FORWARD
 import org.videolan.resources.AndroidDevices
 import org.videolan.resources.AppContextProvider
 import org.videolan.resources.EXIT_PLAYER
+import org.videolan.resources.EXTRA_SEEK_DELAY
 import org.videolan.resources.MOBILE_MAIN_ACTIVITY
 import org.videolan.resources.PLAYLIST_TYPE_ALL
 import org.videolan.resources.PLAY_DISABLE_HARDWARE
@@ -231,6 +237,7 @@ import org.videolan.vlc.util.FileUtils
 import org.videolan.vlc.util.FileUtils.getUri
 import org.videolan.vlc.util.FlagSet
 import org.videolan.vlc.util.FrameRateManager
+import org.videolan.vlc.util.getPendingIntent
 import org.videolan.vlc.util.IDialogManager
 import org.videolan.vlc.util.LocaleUtil
 import org.videolan.vlc.util.LocaleUtil.localeEquivalent
@@ -948,7 +955,7 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
                     val paramBuilder = PictureInPictureParams.Builder()
                     if (width != 0 && height != 0 && (width.toFloat() / height.toFloat()) in 0.418410f..2.39f)
                         paramBuilder.setAspectRatio(Rational(width, height))
-                    paramBuilder.setActions(listOf())
+                    paramBuilder.setActions(buildPipActions())
                     service?.updateWidgetState()
                     enterPictureInPictureMode(paramBuilder.build())
                 } catch (e: IllegalArgumentException) { // Fallback with default parameters
@@ -982,6 +989,51 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         startMain.addCategory(Intent.CATEGORY_HOME)
         startMain.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(startMain)
+    }
+
+    /**
+     * VLMe: custom PiP actions — seek back / play-pause / seek forward.
+     * Setting custom actions replaces Android's session-derived PiP controls
+     * (the prev/next title buttons), so the PiP window shows seek buttons
+     * instead. The seek amount is Settings.videoJumpDelay (default 10s),
+     * the same preference the full player's rewind/forward buttons use;
+     * the intents reuse the service's existing ACTION_REMOTE_SEEK_* path
+     * (same one the home-screen widget uses).
+     */
+    @TargetApi(Build.VERSION_CODES.O)
+    private fun buildPipActions(): List<RemoteAction> {
+        val delay = Settings.videoJumpDelay.toLong()
+        val rewind = RemoteAction(
+                Icon.createWithResource(this, R.drawable.ic_player_rewind_10),
+                getString(R.string.playback_rewind),
+                getString(R.string.playback_rewind),
+                getPendingIntent(Intent(ACTION_REMOTE_SEEK_BACKWARD).putExtra(EXTRA_SEEK_DELAY, delay))
+        )
+        val playing = service?.isPlaying == true
+        val playPause = RemoteAction(
+                Icon.createWithResource(this, if (playing) R.drawable.ic_popup_pause else R.drawable.ic_popup_play),
+                getString(if (playing) R.string.pause else R.string.play),
+                getString(if (playing) R.string.pause else R.string.play),
+                getPendingIntent(Intent(ACTION_REMOTE_PLAYPAUSE))
+        )
+        val forward = RemoteAction(
+                Icon.createWithResource(this, R.drawable.ic_player_forward_10),
+                getString(R.string.playback_forward),
+                getString(R.string.playback_forward),
+                getPendingIntent(Intent(ACTION_REMOTE_SEEK_FORWARD).putExtra(EXTRA_SEEK_DELAY, delay))
+        )
+        return listOf(rewind, playPause, forward)
+    }
+
+    /**
+     * VLMe: refresh the PiP actions when playback state changes while in
+     * PiP, so the play/pause icon follows the state. Only the actions are
+     * rebuilt; the aspect ratio set at PiP entry is left untouched.
+     */
+    @TargetApi(Build.VERSION_CODES.O)
+    private fun updatePipActions() {
+        if (service?.isInPiPMode?.value != true) return
+        setPictureInPictureParams(PictureInPictureParams.Builder().setActions(buildPipActions()).build())
     }
 
     /**
@@ -1717,8 +1769,14 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     override fun onMediaPlayerEvent(event: MediaPlayer.Event) {
         service?.let { service ->
             when (event.type) {
-                MediaPlayer.Event.Playing -> onPlaying()
-                MediaPlayer.Event.Paused -> overlayDelegate.updateOverlayPausePlay()
+                MediaPlayer.Event.Playing -> {
+                    onPlaying()
+                    updatePipActions()
+                }
+                MediaPlayer.Event.Paused -> {
+                    overlayDelegate.updateOverlayPausePlay()
+                    updatePipActions()
+                }
                 MediaPlayer.Event.Opening -> {
                     forcedTime = -1
                     if (!subtitlesExtraPath.isNullOrEmpty()) {
