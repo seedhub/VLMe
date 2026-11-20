@@ -211,7 +211,7 @@ class PreferencesUi : BasePreferenceFragment(), SharedPreferences.OnSharedPrefer
     private fun refreshAccentNote() {
         val preference = findPreference<Preference>(KEY_APP_ACCENT_COLOR) ?: return
         val color = try {
-            settings.getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(requireContext(), R.color.orange800))
+            settings.getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(requireContext(), R.color.accent_green))
         } catch (_: ClassCastException) {
             return
         }
@@ -273,9 +273,9 @@ class PreferencesUi : BasePreferenceFragment(), SharedPreferences.OnSharedPrefer
 
     private fun savedAccentColor(): Int {
         return try {
-            settings.getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(requireContext(), R.color.orange800))
+            settings.getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(requireContext(), R.color.accent_green))
         } catch (_: ClassCastException) {
-            ContextCompat.getColor(requireContext(), R.color.orange800)
+            ContextCompat.getColor(requireContext(), R.color.accent_green)
         }
     }
 

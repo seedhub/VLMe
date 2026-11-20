@@ -63,7 +63,7 @@ private const val TAG = "VLC/Accent"
  */
 fun Context.applyAccentOverlay() {
     val stored = try {
-        Settings.getInstance(this).getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(this, R.color.orange800))
+        Settings.getInstance(this).getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(this, R.color.accent_green))
     } catch (e: ClassCastException) {
         Log.e(TAG, "app_accent_color is not an int; the saved value was left unchanged", e)
         return

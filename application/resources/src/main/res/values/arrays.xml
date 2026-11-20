@@ -729,13 +729,14 @@
     </string-array>
 
     <!-- VLMe accent picker presets. Quick picks only: the dialog still accepts
-         any RGB (cpv_allowCustom). The first entry is stock VLC orange, which
-         keeps the base theme. Other values, including older Material 500
-         ints, are turned into a light/dark palette at startup. -->
+         any RGB (cpv_allowCustom). The first entry is the default accent
+         (green); stock VLC orange stays in the list and keeps the base theme.
+         Other values, including older Material 500 ints, are turned into a
+         light/dark palette at startup. -->
     <integer-array name="accent_color_presets">
+        <item>@color/accent_green</item>
         <item>@color/orange800</item>
         <item>@color/accent_blue</item>
-        <item>@color/accent_green</item>
         <item>@color/accent_red</item>
         <item>@color/accent_purple</item>
         <item>@color/accent_teal</item>
