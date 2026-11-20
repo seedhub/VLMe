@@ -36,6 +36,7 @@ import androidx.core.view.LayoutInflaterCompat
 import com.google.android.material.R as MaterialR
 import org.videolan.tools.KEY_APP_ACCENT_COLOR
 import org.videolan.tools.Settings
+import org.videolan.tools.putSingle
 import org.videolan.vlc.R
 
 private const val TAG = "VLC/Accent"
@@ -62,11 +63,19 @@ private const val TAG = "VLC/Accent"
  * rewritten.
  */
 fun Context.applyAccentOverlay() {
-    val stored = try {
+    var stored = try {
         Settings.getInstance(this).getInt(KEY_APP_ACCENT_COLOR, ContextCompat.getColor(this, R.color.accent_green))
     } catch (e: ClassCastException) {
         Log.e(TAG, "app_accent_color is not an int; the saved value was left unchanged", e)
         return
+    }
+    // VLMe: the old default was stock VLC orange, and a saved orange is
+    // that old default, not a pick - move it to the new green default
+    // once so the swap actually takes effect on existing installs.
+    // Orange stays pickable in the popup afterwards.
+    if ((stored or 0xFF000000.toInt()) == STOCK_ORANGE) {
+        Settings.getInstance(this).putSingle(KEY_APP_ACCENT_COLOR, PRESET_GREEN)
+        stored = PRESET_GREEN
     }
     val seed = canonicalAccentSeed(stored)
     if (seed == null) {
