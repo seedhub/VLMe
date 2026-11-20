@@ -38,6 +38,7 @@ import org.videolan.tools.getContextWithLocale
 import org.videolan.tools.setGone
 import org.videolan.vlc.R
 import org.videolan.vlc.gui.helpers.UiTools
+import org.videolan.vlc.gui.helpers.applyAccentOverlay
 import org.videolan.vlc.gui.helpers.applyTheme
 import org.videolan.vlc.gui.helpers.hf.PinCodeDelegate
 import org.videolan.vlc.gui.helpers.hf.checkPIN
@@ -99,6 +100,14 @@ abstract class BaseActivity : AppCompatActivity() {
         /* Theme must be applied before super.onCreate */
         applyTheme()
         super.onCreate(savedInstanceState)
+        // VLMe: AppCompat applies day/night during super.onCreate and can
+        // re-resolve the theme, dropping the accent overlay applied above.
+        // That only bites the first activity (night mode is settled by the
+        // time later activities are created, which is why Settings showed
+        // green while the main UI stayed orange). Re-apply here: it runs
+        // before the subclass inflates anything, and applyAccentOverlay is
+        // idempotent (the orange-to-green migration is one-time).
+        applyAccentOverlay()
         if (UiTools.currentNightMode != resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
             UiTools.invalidateBitmaps()
             UiTools.currentNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
