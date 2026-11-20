@@ -375,14 +375,11 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
             }
             MediaPlayer.Event.Paused -> {
                 if (BuildConfig.DEBUG) Log.i(TAG, "MediaPlayer.Event.Paused")
-                // VLMe dbg: record a libvlc-side pause (no pause() call needed).
-                VlmeDbg.note(this@PlaybackService, "LIBVLC_PAUSED wakeHeld=${wakeLock.isHeld} fg=$isForeground")
                 executeUpdate(true)
                 showNotification()
                 if (wakeLock.isHeld) wakeLock.release()
             }
             MediaPlayer.Event.EncounteredError -> {
-                VlmeDbg.note(this@PlaybackService, "LIBVLC_ERROR")
                 executeUpdate()
             }
             MediaPlayer.Event.LengthChanged -> {
@@ -409,9 +406,6 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
             }
             MediaPlayer.Event.MediaChanged -> if (BuildConfig.DEBUG) Log.d(TAG, "onEvent: MediaChanged")
             MediaPlayer.Event.EndReached -> {
-                // VLMe dbg: end of media is a normal stop, record it so it is
-                // not mistaken for the screen-off pause.
-                VlmeDbg.note(this@PlaybackService, "LIBVLC_ENDREACHED")
                 mediaEndReached = true
                 playQueueFinished = !playlistManager.hasNext() || playlistManager.stopAfter == currentMediaPosition
             }
@@ -956,8 +950,6 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     }
 
     override fun onDestroy() {
-        // VLMe dbg: service destroyed (process death vs explicit stop).
-        VlmeDbg.note(this, "SERVICE_DESTROY")
         serviceFlow.value = null
         dispatcher.onServicePreSuperOnDestroy()
         PlaylistManager.playingState.value = false
@@ -1079,22 +1071,17 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     fun vlmeOnScreenOffPopup() {
         // VLMe: Android system PiP is isInPiPMode — isPlayingPopup is VLC's
         // legacy floating player (popupManager != null) and is false in PiP,
-        // which is why run #65's hold never engaged (no FG_KEEP_ON note).
+        // which is why run #65's hold never engaged.
         if (isInPiPMode.value != true || vlmeScreenOffPopup) return
         vlmeScreenOffPopup = true
-        VlmeDbg.note(this, "FG_KEEP_ON")
         showNotification()
     }
 
     fun vlmeOnScreenOnPopup() {
         if (!vlmeScreenOffPopup) return
         vlmeScreenOffPopup = false
-        VlmeDbg.note(this, "FG_KEEP_OFF")
         showNotification() // re-hides the notification in PiP
     }
-
-    /** VLMe dbg: current foreground-service flag, for the screen-on Toast. */
-    fun vlmeIsForeground() = isForeground
 
     fun showNotification(): Boolean {
         notificationShowing = true

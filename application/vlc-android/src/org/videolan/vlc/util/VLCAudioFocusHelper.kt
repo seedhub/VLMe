@@ -38,7 +38,6 @@ import org.videolan.tools.AUDIO_DUCKING
 import org.videolan.tools.RESUME_PLAYBACK
 import org.videolan.vlc.BuildConfig
 import org.videolan.vlc.PlaybackService
-import org.videolan.vlc.VlmeDbg
 
 private const val TAG = "VLCAudioFocusHelper"
 
@@ -111,8 +110,6 @@ class VLCAudioFocusHelper(private val service: PlaybackService) {
                 when (focusChange) {
                     AudioManager.AUDIOFOCUS_LOSS -> {
                         if (BuildConfig.DEBUG) Log.i(TAG, "AUDIOFOCUS_LOSS")
-                        // VLMe dbg: permanent focus loss pauses with no resume.
-                        VlmeDbg.note(service, "FOCUS_LOSS")
                         // Pause playback
                         changeAudioFocus(false)
                         service.pause()
@@ -120,16 +117,12 @@ class VLCAudioFocusHelper(private val service: PlaybackService) {
 
                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                         if (BuildConfig.DEBUG) Log.i(TAG, "AUDIOFOCUS_LOSS_TRANSIENT")
-                        // VLMe dbg: transient loss (notification/lock blip?).
-                        VlmeDbg.note(service, "FOCUS_TRANSIENT")
                         // Pause playback
                         pausePlayback()
                     }
 
                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                         if (BuildConfig.DEBUG) Log.i(TAG, "AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK")
-                        // VLMe dbg: ducking only, should not pause.
-                        VlmeDbg.note(service, "FOCUS_DUCK")
                         // Lower the volume
                         if (service.isPlaying) {
                             if (AndroidDevices.isAmazon || podcastPlaying) {
@@ -144,8 +137,6 @@ class VLCAudioFocusHelper(private val service: PlaybackService) {
 
                     AudioManager.AUDIOFOCUS_GAIN -> {
                         if (BuildConfig.DEBUG) Log.i(TAG, "AUDIOFOCUS_GAIN: ")
-                        // VLMe dbg: focus regained — did the resume path run?
-                        VlmeDbg.note(service, "FOCUS_GAIN lossTransient=$lossTransient wasPlaying=$wasPlaying")
                         // Resume playback
                         if (lossTransientVolume != -1) {
                             service.setVolume(lossTransientVolume)
