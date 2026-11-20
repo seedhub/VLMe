@@ -46,9 +46,8 @@
             android:layout_marginEnd="16dp"
             android:text="@string/audio_resume_playback_title"
             android:textColor="?attr/font_default"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="@+id/delete_animation"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/delete_animation"
             app:layout_constraintTop_toTopOf="@+id/delete_animation" />
@@ -58,12 +57,12 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="16dp"
             android:text="@string/audio_resume_playback_warning"
-            android:textSize="16sp"
+            android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/delete_animation" />
+            app:layout_constraintTop_toBottomOf="@+id/title" />
 
 
     <Button
