@@ -75,6 +75,7 @@ import org.videolan.resources.AppContextProvider
 import org.videolan.resources.CRASH_HAPPENED
 import org.videolan.resources.CRASH_ML_CTX
 import org.videolan.resources.CRASH_ML_MSG
+import org.videolan.resources.EXTRA_FIRST_RUN
 import org.videolan.resources.EXTRA_PARSE
 import org.videolan.resources.EXTRA_PATH
 import org.videolan.resources.EXTRA_REMOVE_DEVICE
@@ -226,7 +227,8 @@ class MediaParsingService : LifecycleService(), DevicesDiscoveryCb {
                 val upgrade = intent.getBooleanExtra(EXTRA_UPGRADE, false)
                 val parse = intent.getBooleanExtra(EXTRA_PARSE, true)
                 val removeDevices = intent.getBooleanExtra(EXTRA_REMOVE_DEVICE, false)
-                setupMedialibrary(upgrade, parse, removeDevices)
+                val firstRun = intent.getBooleanExtra(EXTRA_FIRST_RUN, false)
+                setupMedialibrary(upgrade, parse, removeDevices, firstRun)
             }
             ACTION_RELOAD -> actions.trySend(Reload(intent.getStringExtra(EXTRA_PATH)))
             ACTION_FORCE_RELOAD -> actions.trySend(ForceReload)
@@ -310,18 +312,18 @@ class MediaParsingService : LifecycleService(), DevicesDiscoveryCb {
         }
     }
 
-    private fun setupMedialibrary(upgrade: Boolean, parse: Boolean, removeDevices:Boolean) {
+    private fun setupMedialibrary(upgrade: Boolean, parse: Boolean, removeDevices:Boolean, firstRun: Boolean = false) {
         if (medialibrary.isInitiated) {
             medialibrary.resumeBackgroundOperations()
             if (parse && !scanActivated) actions.trySend(StartScan(upgrade))
-        } else actions.trySend(Init(upgrade, parse, removeDevices))
+        } else actions.trySend(Init(upgrade, parse, removeDevices, firstRun))
     }
 
-    private suspend fun initMedialib(parse: Boolean, context: Context, shouldInit: Boolean, upgrade: Boolean, removeDevices: Boolean) {
+    private suspend fun initMedialib(parse: Boolean, context: Context, shouldInit: Boolean, upgrade: Boolean, removeDevices: Boolean, firstRun: Boolean = false) {
         checkNewDevicesForDialog(context, parse, removeDevices)
         if (upgrade) medialibrary.forceParserRetry()
         medialibrary.start()
-        if (parse) startScan(shouldInit, upgrade)
+        if (parse) startScan(shouldInit, upgrade, firstRun)
         else exitCommand()
     }
 
@@ -348,7 +350,7 @@ class MediaParsingService : LifecycleService(), DevicesDiscoveryCb {
         }
     }
 
-    private fun startScan(shouldInit: Boolean, upgrade: Boolean) {
+    private fun startScan(shouldInit: Boolean, upgrade: Boolean, firstRun: Boolean = false) {
         scanActivated = true
         if (MLServiceLocator.getLocatorMode() == MLServiceLocator.LocatorMode.TESTS) {
             (medialibrary as StubMedialibrary).loadJsonData(Util.readAsset("basic_stub.json", ""))
@@ -358,7 +360,14 @@ class MediaParsingService : LifecycleService(), DevicesDiscoveryCb {
                 for (folder in Medialibrary.getBanList())
                     medialibrary.banFolder(AndroidDevices.EXTERNAL_PUBLIC_DIRECTORY + folder)
                 if (preselectedStorages.isEmpty()) {
-                    medialibrary.discover(AndroidDevices.EXTERNAL_PUBLIC_DIRECTORY)
+                    // VLMe: no autoscan on a fresh install when no custom
+                    // folders were picked at first startup - discovering
+                    // the whole shared storage here is what filled the
+                    // library on install. A DB reset/corruption
+                    // (firstRun == false) keeps the old behavior so the
+                    // library rebuilds itself.
+                    if (firstRun) exitCommand()
+                    else medialibrary.discover(AndroidDevices.EXTERNAL_PUBLIC_DIRECTORY)
                 }
                 else {
                     for (folder in preselectedStorages) {
@@ -554,7 +563,7 @@ class MediaParsingService : LifecycleService(), DevicesDiscoveryCb {
                         throw IllegalStateException("Medialibrary DB file is corrupted and unrecoverable")
                     } else  if (initCode != Medialibrary.ML_INIT_ALREADY_INITIALIZED) {
                         shouldInit = shouldInit or (initCode == Medialibrary.ML_INIT_DB_RESET) or (initCode == Medialibrary.ML_INIT_DB_CORRUPTED)
-                        if (initCode != Medialibrary.ML_INIT_FAILED) initMedialib(action.parse, context, shouldInit, action.upgrade, action.removeDevices)
+                        if (initCode != Medialibrary.ML_INIT_FAILED) initMedialib(action.parse, context, shouldInit, action.upgrade, action.removeDevices, action.firstRun)
                         else exitCommand()
                     } else exitCommand()
                 }
@@ -610,7 +619,7 @@ fun Context.reloadLibrary() {
 private sealed class MLAction
 private class DiscoverStorage(val path: String) : MLAction()
 private class DiscoverFolder(val path: String) : MLAction()
-private class Init(val upgrade: Boolean, val parse: Boolean, val removeDevices:Boolean) : MLAction()
+private class Init(val upgrade: Boolean, val parse: Boolean, val removeDevices:Boolean, val firstRun: Boolean = false) : MLAction()
 private class StartScan(val upgrade: Boolean) : MLAction()
 private object UpdateStorages : MLAction()
 private class Reload(val path: String?) : MLAction()
